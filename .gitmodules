@@ -13,3 +13,6 @@
 [submodule "third_party/cpu_features"]
 	path = third_party/cpu_features
 	url = https://github.com/google/cpu_features
+[submodule "pycatch22"]
+	path = pycatch22
+	url = https://github.com/DynamicsAndNeuralSystems/pycatch22.git

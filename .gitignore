@@ -13,7 +13,6 @@ dist/
 *.egg-info
 
 # Test directories that shouldn't be tracked
-pycatch22/
 pycatch22_mcpu/
 
 # IDE and editor files
