@@ -1,5 +1,7 @@
 #include "profile.h"
 
+#include <limits>
+
 namespace SCAMP {
 
 template <typename T>
@@ -149,6 +151,14 @@ void Profile::Alloc(size_t size, int64_t matrix_height, int64_t matrix_width,
       data.emplace_back();
       data[0].float_value.resize(matrix_height * matrix_width, -2.0);
       break;
+    case PROFILE_TYPE_C22:
+      // C22 profile stores dot products (double) and indices (uint64)
+      // in the same ProfileData entry for simplicity
+      data.emplace_back();
+      data[0].double_value.resize(size,
+                                  -std::numeric_limits<double>::infinity());
+      data[0].uint64_value.resize(size, static_cast<uint64_t>(-1));
+      break;
     case PROFILE_TYPE_KNN:
     case PROFILE_TYPE_1NN_MULTIDIM:
     default:
@@ -187,6 +197,9 @@ void Profile::CopyFromDevice(const OpInfo *info, const ExecInfo *exec_info,
               device_tile_profile->at(PROFILE_TYPE_MATRIX_SUMMARY),
               info->matrix_width * info->matrix_height * sizeof(float), true,
               exec_info);
+      break;
+    case PROFILE_TYPE_C22:
+      // C22 profile does not use device-side tiling — no copy needed
       break;
     case PROFILE_TYPE_FREQUENCY_THRESH:
     case PROFILE_TYPE_KNN:
@@ -240,6 +253,9 @@ void Profile::MergeTileToProfile(Profile *tile_profile, const OpInfo *info,
       return;
     case PROFILE_TYPE_MATRIX_SUMMARY:
       matrix_merge(tile_profile->data[0].float_value);
+      return;
+    case PROFILE_TYPE_C22:
+      // C22 profile is computed in one shot (no tiling) — no merge needed
       return;
     case PROFILE_TYPE_KNN:
     case PROFILE_TYPE_1NN_MULTIDIM:

@@ -11,7 +11,7 @@ add_library(scamp_args ${CMAKE_CURRENT_SOURCE_DIR}/scamp_args.cpp)
 target_link_libraries(scamp_args profile common)
 
 add_library(scamp_interface ${CMAKE_CURRENT_SOURCE_DIR}/scamp_interface.cpp)
-target_link_libraries(scamp_interface scamp_args scamp_op)
+target_link_libraries(scamp_interface scamp_args scamp_op c22_profile)
 
 add_library(scamp_utils ${CMAKE_CURRENT_SOURCE_DIR}/scamp_utils.cpp)
 target_link_libraries(scamp_utils common profile)

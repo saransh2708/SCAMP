@@ -5,6 +5,7 @@
 #endif
 
 #include <stdio.h>
+
 #include <cinttypes>
 #include <cmath>
 #include <condition_variable>
@@ -15,6 +16,7 @@
 #include <sstream>
 #include <unordered_map>
 #include <vector>
+
 #include "scamp_exception.h"
 
 #ifdef _HAS_CUDA_
@@ -41,6 +43,7 @@ enum SCAMPProfileType {
   PROFILE_TYPE_1NN = 6,
   PROFILE_TYPE_APPROX_ALL_NEIGHBORS = 7,
   PROFILE_TYPE_MATRIX_SUMMARY = 8,
+  PROFILE_TYPE_C22 = 9,
 };
 
 // Precision modes
@@ -296,8 +299,10 @@ enum SCAMPTileType {
 
 #ifdef _HAS_CUDA_
 void gpuAssert(cudaError_t code, const char *file, int line);
-#define gpuErrchk(ans) \
-  { gpuAssert((ans), __FILE__, __LINE__); }
+#define gpuErrchk(ans)                    \
+  {                                       \
+    gpuAssert((ans), __FILE__, __LINE__); \
+  }
 #endif
 
 #define ASSERT(condition, message)                                         \

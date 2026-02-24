@@ -1,0 +1,60 @@
+# Build directories
+build/
+cmake-build-*/
+
+# Python cache
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+*.egg
+*.egg-info/
+dist/
+*.egg-info
+
+# Test directories that shouldn't be tracked
+pycatch22/
+pycatch22_mcpu/
+
+# IDE and editor files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# Temporary files
+*.tmp
+*.log
+*.bak
+*.orig
+
+# Compiled files
+*.o
+*.a
+*.dylib
+*.dll
+
+# CMake generated files
+CMakeCache.txt
+CMakeFiles/
+cmake_install.cmake
+Makefile
+*.cmake
+!cmake/*.cmake
+
+# Test output files
+mp_columns_out
+mp_columns_out_index
+mp_rows_out
+mp_rows_out_index
+a.txt
+b.txt
+out
+
+# Virtual environments
+venv/
+env/
+ENV/
+.venv/

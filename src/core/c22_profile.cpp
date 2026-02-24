@@ -1,0 +1,271 @@
+#include "c22_profile.h"
+
+#include <algorithm>
+#include <cmath>
+#include <limits>
+#include <thread>
+#include <vector>
+
+#include "c22_features.h"
+
+namespace SCAMP {
+
+// ============================================================================
+// Internal: Flatten C22FeatureVectors into a contiguous double array (N x 22)
+// for cache-friendly dot product computation.
+// ============================================================================
+static std::vector<double> flatten_features(
+    const std::vector<C22FeatureVector>& vecs) {
+  const int D = C22FeatureVector::NUM_FEATURES;
+  std::vector<double> flat(vecs.size() * D);
+  for (size_t i = 0; i < vecs.size(); ++i) {
+    for (int f = 0; f < D; ++f) {
+      flat[i * D + f] = vecs[i].features[f];
+    }
+  }
+  return flat;
+}
+
+// ============================================================================
+// Internal: Compute dot product between two 22-element feature vectors.
+// Kept simple for auto-vectorization by the compiler.
+// ============================================================================
+static inline double dot22(const double* __restrict__ a,
+                           const double* __restrict__ b) {
+  double sum = 0.0;
+  for (int f = 0; f < C22FeatureVector::NUM_FEATURES; ++f) {
+    sum += a[f] * b[f];
+  }
+  return sum;
+}
+
+// ============================================================================
+// CPU Self-Join
+// ============================================================================
+C22ProfileResult c22_profile_selfjoin_cpu(const std::vector<double>& timeseries,
+                                          int window_size, int num_threads) {
+  const int N = static_cast<int>(timeseries.size()) - window_size + 1;
+  if (N <= 0) {
+    return C22ProfileResult();
+  }
+
+  // Exclusion zone: same as SCAMP (window_size / 4)
+  const int exclusion = window_size / 4;
+
+  // Auto-detect threads
+  if (num_threads <= 0) {
+    num_threads = static_cast<int>(std::thread::hardware_concurrency());
+    if (num_threads <= 0) num_threads = 1;
+  }
+
+  // ---- Step 1: Compute C22 feature vectors for all subsequences ----
+  std::vector<C22FeatureVector> features =
+      compute_c22_vectors_parallel(timeseries, window_size, num_threads);
+
+  // Flatten for cache-friendly access (N x 22 contiguous doubles)
+  const int D = C22FeatureVector::NUM_FEATURES;
+  std::vector<double> F = flatten_features(features);
+
+  // ---- Step 2: Compute dot products and find max per row (parallel) ----
+  std::vector<double> profile(N, -std::numeric_limits<double>::infinity());
+  std::vector<int> index(N, -1);
+
+  // Each thread handles a contiguous chunk of rows
+  std::vector<std::thread> threads;
+  int rows_per_thread = (N + num_threads - 1) / num_threads;
+
+  for (int t = 0; t < num_threads; ++t) {
+    int row_start = t * rows_per_thread;
+    int row_end = std::min(row_start + rows_per_thread, N);
+    if (row_start >= N) break;
+
+    threads.emplace_back(
+        [&F, &profile, &index, N, D, exclusion, row_start, row_end]() {
+          for (int i = row_start; i < row_end; ++i) {
+            const double* fi = &F[i * D];
+            double best_dot = -std::numeric_limits<double>::infinity();
+            int best_j = -1;
+
+            for (int j = 0; j < N; ++j) {
+              // Skip if within exclusion zone
+              int diff = (i > j) ? (i - j) : (j - i);
+              if (diff <= exclusion) continue;
+
+              double d = dot22(fi, &F[j * D]);
+              if (d > best_dot) {
+                best_dot = d;
+                best_j = j;
+              }
+            }
+
+            profile[i] = best_dot;
+            index[i] = best_j;
+          }
+        });
+  }
+
+  for (auto& thread : threads) {
+    thread.join();
+  }
+
+  C22ProfileResult result;
+  result.profile = std::move(profile);
+  result.index = std::move(index);
+  return result;
+}
+
+// ============================================================================
+// CPU AB-Join
+// ============================================================================
+C22ProfileResult c22_profile_abjoin_cpu(const std::vector<double>& timeseries_a,
+                                        const std::vector<double>& timeseries_b,
+                                        int window_size, int num_threads) {
+  const int NA = static_cast<int>(timeseries_a.size()) - window_size + 1;
+  const int NB = static_cast<int>(timeseries_b.size()) - window_size + 1;
+  if (NA <= 0 || NB <= 0) {
+    return C22ProfileResult();
+  }
+
+  // Auto-detect threads
+  if (num_threads <= 0) {
+    num_threads = static_cast<int>(std::thread::hardware_concurrency());
+    if (num_threads <= 0) num_threads = 1;
+  }
+
+  // ---- Step 1: Compute C22 feature vectors ----
+  std::vector<C22FeatureVector> features_a =
+      compute_c22_vectors_parallel(timeseries_a, window_size, num_threads);
+  std::vector<C22FeatureVector> features_b =
+      compute_c22_vectors_parallel(timeseries_b, window_size, num_threads);
+
+  // Flatten for cache-friendly access
+  const int D = C22FeatureVector::NUM_FEATURES;
+  std::vector<double> FA = flatten_features(features_a);
+  std::vector<double> FB = flatten_features(features_b);
+
+  // ---- Step 2: For each subsequence in A, find max dot product in B ----
+  std::vector<double> profile(NA, -std::numeric_limits<double>::infinity());
+  std::vector<int> index(NA, -1);
+
+  std::vector<std::thread> threads;
+  int rows_per_thread = (NA + num_threads - 1) / num_threads;
+
+  for (int t = 0; t < num_threads; ++t) {
+    int row_start = t * rows_per_thread;
+    int row_end = std::min(row_start + rows_per_thread, NA);
+    if (row_start >= NA) break;
+
+    threads.emplace_back(
+        [&FA, &FB, &profile, &index, D, NB, row_start, row_end]() {
+          for (int i = row_start; i < row_end; ++i) {
+            const double* fi = &FA[i * D];
+            double best_dot = -std::numeric_limits<double>::infinity();
+            int best_j = -1;
+
+            for (int j = 0; j < NB; ++j) {
+              double d = dot22(fi, &FB[j * D]);
+              if (d > best_dot) {
+                best_dot = d;
+                best_j = j;
+              }
+            }
+
+            profile[i] = best_dot;
+            index[i] = best_j;
+          }
+        });
+  }
+
+  for (auto& thread : threads) {
+    thread.join();
+  }
+
+  C22ProfileResult result;
+  result.profile = std::move(profile);
+  result.index = std::move(index);
+  return result;
+}
+
+// ============================================================================
+// GPU Implementation — delegates to CUDA kernels defined in c22_profile_gpu.cu
+// Feature computation runs on CPU; only the O(N²) dot product search runs on
+// GPU.
+// ============================================================================
+
+#ifdef _HAS_CUDA_
+
+extern "C" {
+void c22_profile_selfjoin_gpu_launch(const double* h_features,
+                                     double* h_profile, int* h_index, int N,
+                                     int exclusion, int gpu_id);
+void c22_profile_abjoin_gpu_launch(const double* h_features_a,
+                                   const double* h_features_b,
+                                   double* h_profile, int* h_index, int NA,
+                                   int NB, int gpu_id);
+}
+
+C22ProfileResult c22_profile_selfjoin_gpu(const std::vector<double>& timeseries,
+                                          int window_size, int gpu_id,
+                                          int num_cpu_threads) {
+  const int N = static_cast<int>(timeseries.size()) - window_size + 1;
+  if (N <= 0) return C22ProfileResult();
+
+  const int exclusion = window_size / 4;
+
+  // Auto-detect CPU threads for feature computation
+  if (num_cpu_threads <= 0) {
+    num_cpu_threads = static_cast<int>(std::thread::hardware_concurrency());
+    if (num_cpu_threads <= 0) num_cpu_threads = 1;
+  }
+
+  // Step 1: Compute features on CPU (in parallel)
+  std::vector<C22FeatureVector> features =
+      compute_c22_vectors_parallel(timeseries, window_size, num_cpu_threads);
+  std::vector<double> F = flatten_features(features);
+
+  // Step 2: Run dot product search on GPU
+  std::vector<double> profile(N);
+  std::vector<int> index(N);
+  c22_profile_selfjoin_gpu_launch(F.data(), profile.data(), index.data(), N,
+                                  exclusion, gpu_id);
+
+  C22ProfileResult result;
+  result.profile = std::move(profile);
+  result.index = std::move(index);
+  return result;
+}
+
+C22ProfileResult c22_profile_abjoin_gpu(const std::vector<double>& timeseries_a,
+                                        const std::vector<double>& timeseries_b,
+                                        int window_size, int gpu_id,
+                                        int num_cpu_threads) {
+  const int NA = static_cast<int>(timeseries_a.size()) - window_size + 1;
+  const int NB = static_cast<int>(timeseries_b.size()) - window_size + 1;
+  if (NA <= 0 || NB <= 0) return C22ProfileResult();
+
+  if (num_cpu_threads <= 0) {
+    num_cpu_threads = static_cast<int>(std::thread::hardware_concurrency());
+    if (num_cpu_threads <= 0) num_cpu_threads = 1;
+  }
+
+  std::vector<C22FeatureVector> features_a =
+      compute_c22_vectors_parallel(timeseries_a, window_size, num_cpu_threads);
+  std::vector<C22FeatureVector> features_b =
+      compute_c22_vectors_parallel(timeseries_b, window_size, num_cpu_threads);
+  std::vector<double> FA = flatten_features(features_a);
+  std::vector<double> FB = flatten_features(features_b);
+
+  std::vector<double> profile(NA);
+  std::vector<int> index(NA);
+  c22_profile_abjoin_gpu_launch(FA.data(), FB.data(), profile.data(),
+                                index.data(), NA, NB, gpu_id);
+
+  C22ProfileResult result;
+  result.profile = std::move(profile);
+  result.index = std::move(index);
+  return result;
+}
+
+#endif  // _HAS_CUDA_
+
+}  // namespace SCAMP

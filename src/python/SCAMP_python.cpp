@@ -1,8 +1,10 @@
 #include <pybind11/numpy.h>
 #include <pybind11/pybind11.h>
 #include <pybind11/stl.h>
+
 #include <cmath>
 #include <thread>
+
 #include "common/common.h"
 #include "common/scamp_args.h"
 #include "common/scamp_interface.h"
@@ -371,6 +373,93 @@ py::array_t<float> scamp_matrix(const std::vector<double>& a,
   return arr;
 }
 
+// ============================================================================
+// C22 Profile functions
+// ============================================================================
+
+// C22 self-join: routes through do_SCAMP() — replaces MASS with C22 features
+std::tuple<std::vector<double>, std::vector<int>> scamp_c22_selfjoin(
+    const std::vector<double>& a, int m, int threads, bool use_gpu) {
+  // Build SCAMPArgs — same pattern as other profile types (selfjoin, abjoin)
+  SCAMP::SCAMPArgs args = GetDefaultSCAMPArgs();
+  args.timeseries_a = a;
+  args.timeseries_b = a;
+  args.window = m;
+  args.has_b = false;
+  args.computing_rows = true;
+  args.computing_columns = true;
+  args.profile_type = SCAMP::PROFILE_TYPE_C22;
+  args.profile_a.type = SCAMP::PROFILE_TYPE_C22;
+  args.profile_b.type = SCAMP::PROFILE_TYPE_C22;
+  args.silent_mode = true;
+
+  // Determine compute resources (same pattern as setup_and_do_SCAMP)
+  std::vector<int> gpus;
+#ifdef _HAS_CUDA_
+  if (use_gpu) {
+    int num_dev = SCAMP::num_available_gpus();
+    for (int i = 0; i < num_dev; ++i) {
+      gpus.push_back(i);
+    }
+  }
+#endif
+  int num_cpus = threads;
+  if (gpus.empty() && num_cpus <= 0) {
+    num_cpus = std::thread::hardware_concurrency();
+  }
+
+  // Route through do_SCAMP — the MASS replacement happens inside
+  SCAMP::do_SCAMP(&args, gpus, num_cpus > 0 ? num_cpus : 1);
+
+  // Extract results from Profile (packed in do_SCAMP_C22)
+  std::vector<int> index(args.profile_a.data[0].uint64_value.size());
+  for (size_t i = 0; i < index.size(); ++i) {
+    index[i] = static_cast<int>(args.profile_a.data[0].uint64_value[i]);
+  }
+  return std::make_tuple(std::move(args.profile_a.data[0].double_value),
+                         std::move(index));
+}
+
+// C22 AB-join: routes through do_SCAMP() — replaces MASS with C22 features
+std::tuple<std::vector<double>, std::vector<int>> scamp_c22_abjoin(
+    const std::vector<double>& a, const std::vector<double>& b, int m,
+    int threads, bool use_gpu) {
+  SCAMP::SCAMPArgs args = GetDefaultSCAMPArgs();
+  args.timeseries_a = a;
+  args.timeseries_b = b;
+  args.window = m;
+  args.has_b = true;
+  args.computing_rows = false;
+  args.computing_columns = true;
+  args.profile_type = SCAMP::PROFILE_TYPE_C22;
+  args.profile_a.type = SCAMP::PROFILE_TYPE_C22;
+  args.profile_b.type = SCAMP::PROFILE_TYPE_C22;
+  args.silent_mode = true;
+
+  std::vector<int> gpus;
+#ifdef _HAS_CUDA_
+  if (use_gpu) {
+    int num_dev = SCAMP::num_available_gpus();
+    for (int i = 0; i < num_dev; ++i) {
+      gpus.push_back(i);
+    }
+  }
+#endif
+  int num_cpus = threads;
+  if (gpus.empty() && num_cpus <= 0) {
+    num_cpus = std::thread::hardware_concurrency();
+  }
+
+  SCAMP::do_SCAMP(&args, gpus, num_cpus > 0 ? num_cpus : 1);
+
+  std::vector<int> index(args.profile_a.data[0].uint64_value.size());
+  for (size_t i = 0; i < index.size(); ++i) {
+    index[i] = static_cast<int>(args.profile_a.data[0].uint64_value[i]);
+  }
+  return std::make_tuple(std::move(args.profile_a.data[0].double_value),
+                         std::move(index));
+}
+
 bool has_gpu_support() { return SCAMP::num_available_gpus() > 0; }
 
 bool (*GPU_supported)() = &has_gpu_support;
@@ -548,6 +637,49 @@ PYBIND11_MODULE(pyscamp, m) {
     :return: A 2D array of height of mheight and width of mwidth. This is a pooled version of the full distance matrix.
     :rtype: 2D array
 )pbdoc");
+
+  // ==== C22 Profile ====
+
+  m.def("selfjoin_c22", &scamp_c22_selfjoin, py::arg("a"), py::arg("m"),
+        py::arg("threads") = 0, py::arg("gpu") = true, R"pbdoc(
+    Computes the C22 Profile for time series A (self-join).
+
+    For each subsequence, finds the most similar other subsequence using
+    catch22 feature vector dot product similarity.
+
+    :param a: Time series to compute C22 profile for.
+    :type a: 1D array
+    :param m: Subsequence length.
+    :type m: int
+    :param threads: Number of CPU threads for feature computation (0 = auto).
+    :type threads: int, optional
+    :param gpu: Use GPU for dot product search if available (default True).
+    :type gpu: bool, optional
+    :return: (profile, index) — profile[i] is the max C22 dot product for
+             subsequence i; index[i] is the index of the best match.
+    :rtype: Tuple of list[float] and list[int]
+    )pbdoc");
+
+  m.def("abjoin_c22", &scamp_c22_abjoin, py::arg("a"), py::arg("b"),
+        py::arg("m"), py::arg("threads") = 0, py::arg("gpu") = true, R"pbdoc(
+    Computes the C22 Profile AB-join: for each subsequence in A, finds
+    the most similar subsequence in B using catch22 feature vector dot
+    product similarity.
+
+    :param a: Query time series.
+    :type a: 1D array
+    :param b: Target time series to search.
+    :type b: 1D array
+    :param m: Subsequence length.
+    :type m: int
+    :param threads: Number of CPU threads for feature computation (0 = auto).
+    :type threads: int, optional
+    :param gpu: Use GPU for dot product search if available (default True).
+    :type gpu: bool, optional
+    :return: (profile, index) — profile[i] is the max C22 dot product of
+             subsequence A_i against all of B; index[i] is the best match in B.
+    :rtype: Tuple of list[float] and list[int]
+    )pbdoc");
 
   m.attr("__version__") = "dev";
 }

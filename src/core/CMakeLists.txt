@@ -23,6 +23,44 @@ endif()
 add_library(cpu_stats ${CMAKE_CURRENT_SOURCE_DIR}/cpu_stats.cpp)
 target_link_libraries(cpu_stats common)
 
+# C22 Feature Vector Library
+# Collect all C22 C source files from pycatch22 (CPU-compatible, no FFTW)
+file(GLOB C22_C_SOURCES
+  "${CMAKE_SOURCE_DIR}/pycatch22/src/C/*.c"
+)
+# Exclude main.c, test files, and Python wrapper
+list(FILTER C22_C_SOURCES EXCLUDE REGEX ".*main\\.c$")
+list(FILTER C22_C_SOURCES EXCLUDE REGEX ".*test\\.c$")
+list(FILTER C22_C_SOURCES EXCLUDE REGEX ".*temp\\.c$")
+list(FILTER C22_C_SOURCES EXCLUDE REGEX ".*catch22_wrap\\.c$")
+
+# Create C22 features library (standalone — no dependency on SCAMP common)
+add_library(c22_features
+  ${CMAKE_CURRENT_SOURCE_DIR}/c22_features.cpp
+  ${C22_C_SOURCES}
+)
+target_include_directories(c22_features PUBLIC
+  ${CMAKE_CURRENT_SOURCE_DIR}
+  ${CMAKE_SOURCE_DIR}/pycatch22/src/C
+)
+# Set C standard for pycatch22 C files
+set_source_files_properties(${C22_C_SOURCES} PROPERTIES
+  C_STANDARD 99
+  C_STANDARD_REQUIRED ON
+)
+
+# C22 Profile computation engine
+if (CMAKE_CUDA_COMPILER)
+  add_library(c22_profile_gpu ${CMAKE_CURRENT_SOURCE_DIR}/c22_profile_gpu.cu)
+  target_compile_definitions(c22_profile_gpu PUBLIC -D_HAS_CUDA_)
+  add_library(c22_profile ${CMAKE_CURRENT_SOURCE_DIR}/c22_profile.cpp)
+  target_link_libraries(c22_profile c22_features c22_profile_gpu Threads::Threads)
+  target_compile_definitions(c22_profile PUBLIC -D_HAS_CUDA_)
+else()
+  add_library(c22_profile ${CMAKE_CURRENT_SOURCE_DIR}/c22_profile.cpp)
+  target_link_libraries(c22_profile c22_features Threads::Threads)
+endif()
+
 add_library(tile ${CMAKE_CURRENT_SOURCE_DIR}/tile.cpp)
 
 # Defines 'cpu_kernels' target.

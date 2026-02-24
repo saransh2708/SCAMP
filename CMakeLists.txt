@@ -42,7 +42,7 @@ endif()
 
 # ----------------------------------------------------------------------------------------
 #                              ===== Project Setup =====
-project(SCAMPmain LANGUAGES CXX)
+project(SCAMPmain LANGUAGES C CXX)
 set(VERSION_MAJOR 1)
 set(VERSION_MINOR 1)
 
@@ -313,6 +313,10 @@ if (CMAKE_CUDA_COMPILER)
   target_compile_definitions(SCAMP PUBLIC -D_HAS_CUDA_)
 endif()
 target_link_libraries(SCAMP gflags common scamp_interface scamp_utils)
+
+# C22 Feature Test
+add_executable(test_c22_features ${CMAKE_CURRENT_SOURCE_DIR}/test/test_c22_features.cpp)
+target_link_libraries(test_c22_features c22_features)
 
 # clang-format target
 function(prepend var prefix)

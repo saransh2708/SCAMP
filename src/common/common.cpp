@@ -1,10 +1,11 @@
 #include "common.h"
-#include "scamp_exception.h"
 
 #include <cstdlib>
 #include <cstring>
 #include <limits>
 #include <sstream>
+
+#include "scamp_exception.h"
 
 namespace SCAMP {
 
@@ -191,6 +192,8 @@ size_t GetProfileTypeSize(SCAMPProfileType t) {
     case PROFILE_TYPE_1NN:
     case PROFILE_TYPE_MATRIX_SUMMARY:
       return sizeof(float);
+    case PROFILE_TYPE_C22:
+      return sizeof(double);
     case PROFILE_TYPE_APPROX_ALL_NEIGHBORS:
     case PROFILE_TYPE_KNN:
       return sizeof(SCAMPmatch);
@@ -221,6 +224,8 @@ std::string GetProfileTypeString(SCAMPProfileType t) {
       return "PROFILE_TYPE_APPROX_ALL_NEIGHBORS";
     case PROFILE_TYPE_MATRIX_SUMMARY:
       return "PROFILE_TYPE_MATRIX_SUMMARY";
+    case PROFILE_TYPE_C22:
+      return "PROFILE_TYPE_C22";
   }
   return "PROFILE_TYPE_UNKNOWN";
 }
