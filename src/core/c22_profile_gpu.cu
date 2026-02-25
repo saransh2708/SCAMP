@@ -4,6 +4,7 @@
 #include <float.h>
 #include <stdio.h>
 #include <stdlib.h>
+
 #include <vector>
 
 // Number of catch22 features
@@ -44,16 +45,17 @@ static void c22_cuda_assert(cudaError_t code, const char* file, int line) {
 // since any valid nearest-neighbor index is acceptable).
 //
 // Monotone float encoding (standard "flip" trick from GPU sorting literature):
-//   positive floats: flip sign bit   → 1xxxxxxx...  (larger uint → larger float)
-//   negative floats: flip all bits   → 0xxxxxxx...  (larger uint → less negative)
+//   positive floats: flip sign bit   → 1xxxxxxx...  (larger uint → larger
+//   float) negative floats: flip all bits   → 0xxxxxxx...  (larger uint → less
+//   negative)
 // ============================================================================
 __device__ static inline unsigned int float_to_monotone_bits(float v) {
   unsigned int bits;
   // Use memcpy to avoid strict-aliasing UB; nvcc optimises this away.
   __builtin_memcpy(&bits, &v, sizeof(float));
-  if (bits >> 31u) {    // negative: flip all bits
+  if (bits >> 31u) {  // negative: flip all bits
     bits = ~bits;
-  } else {              // non-negative: set sign bit
+  } else {  // non-negative: set sign bit
     bits |= 0x80000000u;
   }
   return bits;
@@ -109,10 +111,9 @@ __global__ void c22_recompute_abjoin_profile_kernel(
 // the (float_profile, index) pair with the largest dot product for that row.
 // ============================================================================
 __global__ void c22_tiled_selfjoin_kernel(
-    const double* __restrict__ F,          // N x 22  (row-major)
+    const double* __restrict__ F,             // N x 22  (row-major)
     unsigned long long* __restrict__ packed,  // N — packed (float_dot, idx)
     int N, int exclusion) {
-
   __shared__ double sh_row[TILE_R][C22_NUM_FEATURES];
   __shared__ double sh_col[TILE_C][C22_NUM_FEATURES];
 
@@ -156,11 +157,10 @@ __global__ void c22_tiled_selfjoin_kernel(
 // Tiled AB-join kernel  (same structure, no exclusion zone)
 // ============================================================================
 __global__ void c22_tiled_abjoin_kernel(
-    const double* __restrict__ FA,         // NA x 22
-    const double* __restrict__ FB,         // NB x 22
+    const double* __restrict__ FA,            // NA x 22
+    const double* __restrict__ FB,            // NB x 22
     unsigned long long* __restrict__ packed,  // NA — packed (float_dot, idx)
     int NA, int NB) {
-
   __shared__ double sh_row[TILE_R][C22_NUM_FEATURES];
   __shared__ double sh_col[TILE_C][C22_NUM_FEATURES];
 
@@ -173,12 +173,14 @@ __global__ void c22_tiled_abjoin_kernel(
   {
     int load_row = blockIdx.y * TILE_R + ty;
     for (int f = tx; f < C22_NUM_FEATURES; f += TILE_C)
-      sh_row[ty][f] = (load_row < NA) ? FA[load_row * C22_NUM_FEATURES + f] : 0.0;
+      sh_row[ty][f] =
+          (load_row < NA) ? FA[load_row * C22_NUM_FEATURES + f] : 0.0;
   }
   {
     int load_col = blockIdx.x * TILE_C + tx;
     for (int f = ty; f < C22_NUM_FEATURES; f += TILE_R)
-      sh_col[tx][f] = (load_col < NB) ? FB[load_col * C22_NUM_FEATURES + f] : 0.0;
+      sh_col[tx][f] =
+          (load_col < NB) ? FB[load_col * C22_NUM_FEATURES + f] : 0.0;
   }
 
   __syncthreads();
@@ -219,20 +221,20 @@ void c22_profile_selfjoin_gpu_launch(const double* h_features,
                                      int exclusion, int gpu_id) {
   C22_CUDA_CHECK(cudaSetDevice(gpu_id));
 
-  size_t feat_bytes   = (size_t)N * C22_NUM_FEATURES * sizeof(double);
+  size_t feat_bytes = (size_t)N * C22_NUM_FEATURES * sizeof(double);
   size_t packed_bytes = (size_t)N * sizeof(unsigned long long);
-  size_t prof_bytes   = (size_t)N * sizeof(double);
-  size_t idx_bytes    = (size_t)N * sizeof(int);
+  size_t prof_bytes = (size_t)N * sizeof(double);
+  size_t idx_bytes = (size_t)N * sizeof(int);
 
-  double*             d_features = nullptr;
-  unsigned long long* d_packed   = nullptr;
-  double*             d_profile  = nullptr;
-  int*                d_index    = nullptr;
+  double* d_features = nullptr;
+  unsigned long long* d_packed = nullptr;
+  double* d_profile = nullptr;
+  int* d_index = nullptr;
 
   C22_CUDA_CHECK(cudaMalloc(&d_features, feat_bytes));
-  C22_CUDA_CHECK(cudaMalloc(&d_packed,   packed_bytes));
-  C22_CUDA_CHECK(cudaMalloc(&d_profile,  prof_bytes));
-  C22_CUDA_CHECK(cudaMalloc(&d_index,    idx_bytes));
+  C22_CUDA_CHECK(cudaMalloc(&d_packed, packed_bytes));
+  C22_CUDA_CHECK(cudaMalloc(&d_profile, prof_bytes));
+  C22_CUDA_CHECK(cudaMalloc(&d_index, idx_bytes));
 
   // Initialise packed[] with sentinel so any real dot product wins atomicMax
   {
@@ -242,13 +244,14 @@ void c22_profile_selfjoin_gpu_launch(const double* h_features,
                               cudaMemcpyHostToDevice));
   }
 
-  C22_CUDA_CHECK(cudaMemcpy(d_features, h_features, feat_bytes,
-                            cudaMemcpyHostToDevice));
+  C22_CUDA_CHECK(
+      cudaMemcpy(d_features, h_features, feat_bytes, cudaMemcpyHostToDevice));
 
   // Phase 1: tiled dot-product kernel — fills d_packed atomically
   dim3 block(TILE_C, TILE_R);
   dim3 grid((N + TILE_C - 1) / TILE_C, (N + TILE_R - 1) / TILE_R);
-  c22_tiled_selfjoin_kernel<<<grid, block>>>(d_features, d_packed, N, exclusion);
+  c22_tiled_selfjoin_kernel<<<grid, block>>>(d_features, d_packed, N,
+                                             exclusion);
   C22_CUDA_CHECK(cudaGetLastError());
   C22_CUDA_CHECK(cudaDeviceSynchronize());
 
@@ -260,8 +263,8 @@ void c22_profile_selfjoin_gpu_launch(const double* h_features,
     std::vector<int> h_idx(N);
     for (int i = 0; i < N; ++i)
       h_idx[i] = (int)(unsigned int)(h_packed[i] & 0xFFFFFFFFULL);
-    C22_CUDA_CHECK(cudaMemcpy(d_index, h_idx.data(), idx_bytes,
-                              cudaMemcpyHostToDevice));
+    C22_CUDA_CHECK(
+        cudaMemcpy(d_index, h_idx.data(), idx_bytes, cudaMemcpyHostToDevice));
     // Also copy h_idx to output now; profile recomputed next
     std::copy(h_idx.begin(), h_idx.end(), h_index);
   }
@@ -269,13 +272,13 @@ void c22_profile_selfjoin_gpu_launch(const double* h_features,
   // Phase 2: recompute exact double profile from winning indices
   {
     int threads = 256;
-    int blocks  = (N + threads - 1) / threads;
+    int blocks = (N + threads - 1) / threads;
     c22_recompute_profile_kernel<<<blocks, threads>>>(d_features, d_index,
                                                       d_profile, N);
     C22_CUDA_CHECK(cudaGetLastError());
     C22_CUDA_CHECK(cudaDeviceSynchronize());
-    C22_CUDA_CHECK(cudaMemcpy(h_profile, d_profile, prof_bytes,
-                              cudaMemcpyDeviceToHost));
+    C22_CUDA_CHECK(
+        cudaMemcpy(h_profile, d_profile, prof_bytes, cudaMemcpyDeviceToHost));
   }
 
   C22_CUDA_CHECK(cudaFree(d_features));
@@ -293,20 +296,20 @@ void c22_profile_abjoin_gpu_launch(const double* h_features_a,
   size_t feat_a_bytes = (size_t)NA * C22_NUM_FEATURES * sizeof(double);
   size_t feat_b_bytes = (size_t)NB * C22_NUM_FEATURES * sizeof(double);
   size_t packed_bytes = (size_t)NA * sizeof(unsigned long long);
-  size_t prof_bytes   = (size_t)NA * sizeof(double);
-  size_t idx_bytes    = (size_t)NA * sizeof(int);
+  size_t prof_bytes = (size_t)NA * sizeof(double);
+  size_t idx_bytes = (size_t)NA * sizeof(int);
 
-  double*             d_features_a = nullptr;
-  double*             d_features_b = nullptr;
-  unsigned long long* d_packed     = nullptr;
-  double*             d_profile    = nullptr;
-  int*                d_index      = nullptr;
+  double* d_features_a = nullptr;
+  double* d_features_b = nullptr;
+  unsigned long long* d_packed = nullptr;
+  double* d_profile = nullptr;
+  int* d_index = nullptr;
 
   C22_CUDA_CHECK(cudaMalloc(&d_features_a, feat_a_bytes));
   C22_CUDA_CHECK(cudaMalloc(&d_features_b, feat_b_bytes));
-  C22_CUDA_CHECK(cudaMalloc(&d_packed,     packed_bytes));
-  C22_CUDA_CHECK(cudaMalloc(&d_profile,    prof_bytes));
-  C22_CUDA_CHECK(cudaMalloc(&d_index,      idx_bytes));
+  C22_CUDA_CHECK(cudaMalloc(&d_packed, packed_bytes));
+  C22_CUDA_CHECK(cudaMalloc(&d_profile, prof_bytes));
+  C22_CUDA_CHECK(cudaMalloc(&d_index, idx_bytes));
 
   {
     unsigned long long s = sentinel_packed();
@@ -322,8 +325,8 @@ void c22_profile_abjoin_gpu_launch(const double* h_features_a,
 
   dim3 block(TILE_C, TILE_R);
   dim3 grid((NB + TILE_C - 1) / TILE_C, (NA + TILE_R - 1) / TILE_R);
-  c22_tiled_abjoin_kernel<<<grid, block>>>(d_features_a, d_features_b,
-                                           d_packed, NA, NB);
+  c22_tiled_abjoin_kernel<<<grid, block>>>(d_features_a, d_features_b, d_packed,
+                                           NA, NB);
   C22_CUDA_CHECK(cudaGetLastError());
   C22_CUDA_CHECK(cudaDeviceSynchronize());
 
@@ -335,21 +338,21 @@ void c22_profile_abjoin_gpu_launch(const double* h_features_a,
     std::vector<int> h_idx(NA);
     for (int i = 0; i < NA; ++i)
       h_idx[i] = (int)(unsigned int)(h_packed[i] & 0xFFFFFFFFULL);
-    C22_CUDA_CHECK(cudaMemcpy(d_index, h_idx.data(), idx_bytes,
-                              cudaMemcpyHostToDevice));
+    C22_CUDA_CHECK(
+        cudaMemcpy(d_index, h_idx.data(), idx_bytes, cudaMemcpyHostToDevice));
     std::copy(h_idx.begin(), h_idx.end(), h_index);
   }
 
   // Recompute exact double profile
   {
     int threads = 256;
-    int blocks  = (NA + threads - 1) / threads;
+    int blocks = (NA + threads - 1) / threads;
     c22_recompute_abjoin_profile_kernel<<<blocks, threads>>>(
         d_features_a, d_features_b, d_index, d_profile, NA);
     C22_CUDA_CHECK(cudaGetLastError());
     C22_CUDA_CHECK(cudaDeviceSynchronize());
-    C22_CUDA_CHECK(cudaMemcpy(h_profile, d_profile, prof_bytes,
-                              cudaMemcpyDeviceToHost));
+    C22_CUDA_CHECK(
+        cudaMemcpy(h_profile, d_profile, prof_bytes, cudaMemcpyDeviceToHost));
   }
 
   C22_CUDA_CHECK(cudaFree(d_features_a));
