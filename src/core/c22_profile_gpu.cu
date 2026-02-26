@@ -379,8 +379,8 @@ void c22_profile_selfjoin_gpu_launch_from_ts(const double* h_ts, int ts_length,
                                              int* h_index, int N, int exclusion,
                                              int gpu_id) {
   C22_CUDA_CHECK(cudaSetDevice(gpu_id));
-  // Need 64 KB stack per thread for the feature extraction kernel
-  C22_CUDA_CHECK(cudaDeviceSetLimit(cudaLimitStackSize, 64 * 1024));
+  // 128 KB stack: actual kernel usage is ~58 KB (DN_OutlierInclude dominates)
+  C22_CUDA_CHECK(cudaDeviceSetLimit(cudaLimitStackSize, 128 * 1024));
 
   size_t ts_bytes = (size_t)ts_length * sizeof(double);
   size_t feat_bytes = (size_t)N * C22_NUM_FEATURES * sizeof(double);
@@ -468,7 +468,8 @@ void c22_profile_abjoin_gpu_launch_from_ts(const double* h_ts_a,
                                            double* h_profile, int* h_index,
                                            int NA, int NB, int gpu_id) {
   C22_CUDA_CHECK(cudaSetDevice(gpu_id));
-  C22_CUDA_CHECK(cudaDeviceSetLimit(cudaLimitStackSize, 64 * 1024));
+  // 128 KB stack: actual kernel usage is ~58 KB (DN_OutlierInclude dominates)
+  C22_CUDA_CHECK(cudaDeviceSetLimit(cudaLimitStackSize, 128 * 1024));
 
   size_t ts_a_bytes = (size_t)ts_a_length * sizeof(double);
   size_t ts_b_bytes = (size_t)ts_b_length * sizeof(double);

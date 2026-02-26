@@ -16,10 +16,12 @@
 //     device.  The result is numerically close but not bit-identical to the CPU
 //     for that single feature; all other 21 features are exact.
 //
-// Stack per thread at W=256: ~36 KB (dominated by FFT arrays for SP_Summaries
-// and the DN_OutlierInclude working arrays).  Call
-//   cudaDeviceSetLimit(cudaLimitStackSize, 64 * 1024)
-// before launching — this is done in c22_compute_features_gpu_launch().
+// Stack per thread at W=256: ~58 KB (dominated by DN_OutlierInclude working
+// arrays and the inlined device function locals).  We set
+//   cudaDeviceSetLimit(cudaLimitStackSize, 128 * 1024)   ← 128 KB
+// before launching to give ample headroom above the ~58 KB actual usage.
+// This is done in c22_compute_features_gpu_launch() and in
+// c22_profile_selfjoin_gpu_launch_from_ts() / _abjoin_.
 
 #ifdef _HAS_CUDA_
 
@@ -31,10 +33,11 @@
 // ============================================================================
 // Configuration
 // ============================================================================
-#define C22_GPU_MAX_W 256        // max window size for GPU feature extraction
-#define C22_GPU_SP_NFFT 256      // FFT size for SP_Summaries (nextpow2(MAX_W))
-#define C22_GPU_MAX_NTHRESH 500  // max outlier threshold levels
-#define C22_GPU_BLOCK_SIZE 64    // threads per block (limits stack pressure)
+#define C22_GPU_MAX_W 256    // max window size for GPU feature extraction
+#define C22_GPU_SP_NFFT 256  // FFT size for SP_Summaries (nextpow2(MAX_W))
+#define C22_GPU_MAX_NTHRESH \
+  300                          // max outlier threshold levels (z-scored max≈3)
+#define C22_GPU_BLOCK_SIZE 64  // threads per block
 #define C22_GPU_NUM_FEAT 22
 
 // ============================================================================
@@ -1094,7 +1097,7 @@ bool c22_compute_features_gpu_launch(const double* h_ts, int ts_length,
   cudaSetDevice(gpu_id);
 
   // Increase stack size to accommodate large per-thread local arrays
-  cudaDeviceSetLimit(cudaLimitStackSize, 64 * 1024);  // 64 KB per thread
+  cudaDeviceSetLimit(cudaLimitStackSize, 128 * 1024);  // 128 KB per thread
 
   size_t ts_bytes = (size_t)ts_length * sizeof(double);
   size_t feat_bytes = (size_t)N * C22_GPU_NUM_FEAT * sizeof(double);
