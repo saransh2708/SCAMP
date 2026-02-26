@@ -472,8 +472,8 @@ __device__ static double gpu_SB_TransitionMatrix_3ac_sumdiagcov(
 // ── Feature 10: PD_PeriodicityWang_th0_01 ───────────────────────────────────
 // Approximation: uses quadratic detrend instead of full spline fit.
 // ============================================================================
-__device__ static int gpu_PD_PeriodicityWang(const double* z, int W,
-                                             double* tmp) {
+__device__ __noinline__ static int gpu_PD_PeriodicityWang(const double* z,
+                                                          int W, double* tmp) {
   // Quadratic detrend: fit y = a + b*t + c*t² using OLS
   // Normal equations for 3 coefficients
   double sx = 0, sx2 = 0, sx3 = 0, sx4 = 0, sy = 0, sxy = 0, sx2y = 0;
@@ -649,13 +649,13 @@ __device__ static double gpu_FC_LocalSimple_mean_tauresrat(const double* z,
 // ============================================================================
 // ── Feature 14/15: DN_OutlierInclude ─────────────────────────────────────────
 // ============================================================================
-__device__ static double gpu_DN_OutlierInclude(const double* z, int W,
-                                               double sign,
-                                               double* r,          // W doubles
-                                               double* msDti1,     // nThresh
-                                               double* msDti3,     // nThresh
-                                               double* msDti4,     // nThresh
-                                               double* med_tmp) {  // W doubles
+__device__ __noinline__ static double gpu_DN_OutlierInclude(
+    const double* z, int W, double sign,
+    double* r,          // W doubles
+    double* msDti1,     // nThresh
+    double* msDti3,     // nThresh
+    double* msDti4,     // nThresh
+    double* med_tmp) {  // W doubles
   double inc = 0.01;
   // check constant
   int constant = 1;
@@ -710,11 +710,10 @@ __device__ static double gpu_DN_OutlierInclude(const double* z, int W,
 // ── Features 16+21: SP_Summaries_welch_rect ──────────────────────────────────
 // Returns area_5_1 in [0] and centroid in [1]
 // ============================================================================
-__device__ static void gpu_SP_Summaries_welch_rect(const double* z, int W,
-                                                   double* area_out,
-                                                   double* centroid_out,
-                                                   double* Fre,    // SP_NFFT
-                                                   double* Fim) {  // SP_NFFT
+__device__ __noinline__ static void gpu_SP_Summaries_welch_rect(
+    const double* z, int W, double* area_out, double* centroid_out,
+    double* Fre,    // SP_NFFT
+    double* Fim) {  // SP_NFFT
   const double PI = 3.14159265358979323846;
   int NFFT = gpu_nextpow2(W);
   if (NFFT > C22_GPU_SP_NFFT) NFFT = C22_GPU_SP_NFFT;
@@ -823,15 +822,15 @@ __device__ static double gpu_SB_MotifThree_quantile_hh(const double* z, int W,
 // ── Features 19+20: SC_FluctAnal ─────────────────────────────────────────────
 // Returns rsrangefit in [0], dfa in [1]
 // ============================================================================
-__device__ static void gpu_SC_FluctAnal(const double* z, int W, int lag,
-                                        double* rsrange_out, double* dfa_out,
-                                        double* yCS,    // W doubles
-                                        double* xReg,   // W/2 doubles
-                                        double* FArr,   // 50 doubles
-                                        double* logtt,  // 50 doubles
-                                        double* logFF,  // 50 doubles
-                                        double* sserr,  // 50 doubles
-                                        double* buf) {  // W/2 doubles
+__device__ __noinline__ static void gpu_SC_FluctAnal(
+    const double* z, int W, int lag, double* rsrange_out, double* dfa_out,
+    double* yCS,    // W doubles
+    double* xReg,   // W/2 doubles
+    double* FArr,   // 50 doubles
+    double* logtt,  // 50 doubles
+    double* logFF,  // 50 doubles
+    double* sserr,  // 50 doubles
+    double* buf) {  // W/2 doubles
   // log-spaced tau vector
   double linLow = log(5.0);
   double linHigh = log((double)W / 2.0);
