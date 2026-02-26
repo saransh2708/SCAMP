@@ -169,11 +169,39 @@ __device__ static double gpu_autocov_lag_per_elem(const double* y, int n,
   return s / (n - lag);
 }
 
-// autocorr at lag: ac[k] = sum(y*y[+k]) / sum(y²)  — matches pycatch22
+// autocorr at lag: ac[k] = sum(y*y[+k]) / sum(y²)  — matches co_autocorrs
 __device__ static double gpu_autocorr_lag(const double* y, int n, int lag) {
   double var = gpu_autocov_lag(y, n, 0);  // = sum(y²)
   if (fabs(var) < 1e-30) return 0.0;
   return gpu_autocov_lag(y, n, lag) / var;
+}
+
+// Pearson autocorrelation at lag: corr(y[0:n-lag], y[lag:n]).
+// Matches pycatch22's autocorr_lag() in stats.c, which calls
+// corr(x, &x[lag], size-lag) — a full Pearson with per-slice mean+std.
+// Used ONLY by IN_AutoMutualInfoStats_40_gaussian_fmmi.
+__device__ static double gpu_autocorr_pearson_lag(const double* y, int n,
+                                                  int lag) {
+  int sz = n - lag;
+  if (sz <= 0) return 0.0;
+  const double* xa = y;        // y[0..sz-1]
+  const double* xb = y + lag;  // y[lag..n-1]
+  double mx = 0.0, my = 0.0;
+  for (int i = 0; i < sz; i++) {
+    mx += xa[i];
+    my += xb[i];
+  }
+  mx /= sz;
+  my /= sz;
+  double nom = 0.0, dX = 0.0, dY = 0.0;
+  for (int i = 0; i < sz; i++) {
+    double dx = xa[i] - mx, dy = xb[i] - my;
+    nom += dx * dy;
+    dX += dx * dx;
+    dY += dy * dy;
+  }
+  double denom = sqrt(dX * dY);
+  return (denom < 1e-30) ? 0.0 : nom / denom;
 }
 
 // Compute autocorrelations for lags 0..maxlag into out[] (size maxlag+1)
@@ -626,7 +654,9 @@ __device__ static double gpu_IN_AutoMutualInfoStats(const double* z, int W) {
   if (tau > (int)ceil((double)W / 2)) tau = (int)ceil((double)W / 2);
   double ami[40];
   for (int i = 0; i < tau; i++) {
-    double ac = gpu_autocorr_lag(z, W, i + 1);
+    // pycatch22 uses autocorr_lag() = Pearson corr of two sub-slices,
+    // NOT the global sum/sum² form used by co_autocorrs().
+    double ac = gpu_autocorr_pearson_lag(z, W, i + 1);
     double ac2 = ac * ac;
     ami[i] = (ac2 >= 1.0) ? 0.0 : -0.5 * log(1.0 - ac2);
   }
