@@ -159,14 +159,22 @@ __device__ static double gpu_autocov_lag(const double* y, int n, int lag) {
   return s;  // raw sum — caller divides by lag-0 for normalisation
 }
 
-// Per-element autocov: sum / (n-lag).  Used only by PD_PeriodicityWang
-// where the 0.01 threshold was calibrated for per-element values.
-__device__ static double gpu_autocov_lag_per_elem(const double* y, int n,
-                                                  int lag) {
-  if (lag >= n) return 0.0;
-  double s = 0.0;
-  for (int i = 0; i < n - lag; i++) s += y[i] * y[i + lag];
-  return s / (n - lag);
+// Pearson covariance at lag: cov_mean(y, y+lag, n-lag)
+// Matches pycatch22's autocov_lag = cov_mean(x, &x[lag], size-lag).
+// Used only by PD_PeriodicityWang.
+__device__ static double gpu_autocov_cov_mean(const double* y, int n, int lag) {
+  if (lag >= n || n - lag <= 1) return 0.0;
+  int sz = n - lag;
+  double mx = 0.0, my = 0.0;
+  for (int i = 0; i < sz; i++) {
+    mx += y[i];
+    my += y[i + lag];
+  }
+  mx /= sz;
+  my /= sz;
+  double cov = 0.0;
+  for (int i = 0; i < sz; i++) cov += (y[i] - mx) * (y[i + lag] - my);
+  return cov / (sz - 1);
 }
 
 // autocorr at lag: ac[k] = sum(y*y[+k]) / sum(y²)  — matches co_autocorrs
@@ -510,65 +518,260 @@ __device__ static double gpu_SB_TransitionMatrix_3ac_sumdiagcov(
 }
 
 // ============================================================================
+// ── GPU Splinefit — exact port of pycatch22/src/C/splinefit.c ───────────────
+// Fits a 2-piece cubic B-spline (pieces=2, deg=3, nSpline=4, piecesExt=8)
+// with breakpoints at {0, floor(n/2)-1, n-1} to the data y[0..n-1].
+// Writes the fitted spline values into yOut[0..n-1].
+// Stack usage: ~29 KB (xsB/indexB/vB/Amat dominate).
+// ============================================================================
+__device__ __noinline__ static void gpu_splinefit(const double* y, int n,
+                                                  double* yOut) {
+  // breakpoints
+  int br[3];
+  br[0] = 0;
+  br[1] = (int)floor((double)n / 2.0) - 1;
+  br[2] = n - 1;
+
+  int h0 = br[1] - br[0];  // spacing of first piece
+  int h1 = br[2] - br[1];  // spacing of second piece
+
+  // hCopy[4] = {h0, h1, h0, h1}
+  int hCopy[4] = {h0, h1, h0, h1};
+
+  // Extended breaks to the LEFT  (hl = hCopy reversed subset)
+  // hl[0]=hCopy[3]=h1, hl[1]=hCopy[2]=h0, hl[2]=hCopy[1]=h1
+  int hl[3], hlCS[3];
+  hl[0] = hCopy[3];
+  hl[1] = hCopy[2];
+  hl[2] = hCopy[1];
+  hlCS[0] = hl[0];
+  hlCS[1] = hlCS[0] + hl[1];
+  hlCS[2] = hlCS[1] + hl[2];
+  int bl[3];
+  for (int i = 0; i < 3; i++) bl[i] = br[0] - hlCS[i];
+
+  // Extended breaks to the RIGHT
+  // hr[0]=hCopy[0]=h0, hr[1]=hCopy[1]=h1, hr[2]=hCopy[2]=h0
+  int hr[3], hrCS[3];
+  hr[0] = hCopy[0];
+  hr[1] = hCopy[1];
+  hr[2] = hCopy[2];
+  hrCS[0] = hr[0];
+  hrCS[1] = hrCS[0] + hr[1];
+  hrCS[2] = hrCS[1] + hr[2];
+  int brr[3];
+  for (int i = 0; i < 3; i++) brr[i] = br[2] + hrCS[i];
+
+  // Full extended breakpoints (9 entries)
+  int breaksExt[9];
+  for (int i = 0; i < 3; i++) {
+    breaksExt[i] = bl[2 - i];
+    breaksExt[i + 3] = br[i];
+    breaksExt[i + 6] = brr[i];
+  }
+  int hExt[8];
+  for (int i = 0; i < 8; i++) hExt[i] = breaksExt[i + 1] - breaksExt[i];
+
+  // Index matrix ii[4][8]: ii[r][c] = min(r+c, 7)
+  int ii[4][8];
+  for (int c = 0; c < 8; c++) {
+    ii[0][c] = (c < 8) ? c : 7;
+    ii[1][c] = (c + 1 < 8) ? c + 1 : 7;
+    ii[2][c] = (c + 2 < 8) ? c + 2 : 7;
+    ii[3][c] = (c + 3 < 8) ? c + 3 : 7;
+  }
+
+  // H[32]: H[l] = hExt[ii[l%4][l/4]]
+  double H[32];
+  for (int l = 0; l < 32; l++) H[l] = (double)hExt[ii[l % 4][l / 4]];
+
+  // coefs[32][5] — B-spline polynomial coefficients (initialised to step fns)
+  double coefs[32][5];
+  for (int i = 0; i < 32; i++)
+    for (int j = 0; j < 5; j++) coefs[i][j] = 0.0;
+  for (int i = 0; i < 32; i += 4) coefs[i][0] = 1.0;
+
+  double Q[4][8];
+
+  // Recursive B-spline generation: build order-1..4 B-splines
+  for (int k = 1; k < 4; k++) {
+    // antiderivatives: scale coefs[*][0..k-1] by H/(k-j)
+    for (int j = 0; j < k; j++)
+      for (int l = 0; l < 32; l++) coefs[l][j] *= H[l] / (double)(k - j);
+
+    // Q[row][col] = sum of coefs row for col
+    for (int l = 0; l < 32; l++) {
+      Q[l % 4][l / 4] = 0.0;
+      for (int m = 0; m < 4; m++) Q[l % 4][l / 4] += coefs[l][m];
+    }
+    // cumsum Q along rows (column by column)
+    for (int col = 0; col < 8; col++)
+      for (int row = 1; row < 4; row++) Q[row][col] += Q[row - 1][col];
+
+    // update coefs[*][k] from Q (Q[row-1] for row>0, 0 for row==0)
+    for (int l = 0; l < 32; l++) {
+      if (l % 4 == 0)
+        coefs[l][k] = 0.0;
+      else
+        coefs[l][k] = Q[(l % 4) - 1][l / 4];
+    }
+
+    // normalise by fmax = Q[3][col]: coefs[l][0..k] /= Q[3][l/4]
+    for (int j = 0; j <= k; j++)
+      for (int l = 0; l < 32; l++) {
+        double fmax = Q[3][l / 4];
+        if (fabs(fmax) > 1e-30) coefs[l][j] /= fmax;
+      }
+
+    // diff to adjacent antiderivatives: coefs[l] -= coefs[l+3] for l=0..28
+    for (int l = 0; l < 29; l++)
+      for (int j = 0; j <= k; j++) coefs[l][j] -= coefs[l + 3][j];
+    // zero out every 4th coef[k]
+    for (int l = 0; l < 32; l += 4) coefs[l][k] = 0.0;
+  }
+
+  // Scale polynomial coefficients
+  double scale[32];
+  for (int i = 0; i < 32; i++) scale[i] = 1.0;
+  for (int k = 0; k < 3; k++) {
+    for (int i = 0; i < 32; i++) scale[i] /= H[i];
+    for (int i = 0; i < 32; i++) coefs[i][3 - (k + 1)] *= scale[i];
+  }
+
+  // jj[4][2]: reduction index matrix
+  int jj[4][2];
+  for (int i = 0; i < 4; i++)
+    for (int j = 0; j < 2; j++) jj[i][j] = (i == 0) ? 4 * (1 + j) : 3;
+  // cumsum along rows
+  for (int i = 1; i < 4; i++)
+    for (int j = 0; j < 2; j++) jj[i][j] += jj[i - 1][j];
+
+  // coefsOut[8][4]: extracted B-spline piece coefficients
+  double coefsOut[8][4];
+  for (int l = 0; l < 8; l++) {
+    int jj_flat = jj[l % 4][l / 4] - 1;
+    for (int j = 0; j < 4; j++) coefsOut[l][j] = coefs[jj_flat][j];
+  }
+
+  // Build basis matrix A (n × 5) using B-splines
+  int xsB[C22_GPU_MAX_W * 4];
+  int indexB[C22_GPU_MAX_W * 4];
+  double vB[C22_GPU_MAX_W * 4];
+  {
+    int breakInd = 1;
+    for (int i = 0; i < n; i++) {
+      if (i >= br[breakInd] && breakInd < 2) breakInd++;
+      for (int j = 0; j < 4; j++) {
+        xsB[i * 4 + j] = i - br[breakInd - 1];
+        indexB[i * 4 + j] = j + (breakInd - 1) * 4;
+      }
+    }
+    for (int i = 0; i < n * 4; i++) vB[i] = coefsOut[indexB[i]][0];
+    // Horner's method for basis evaluation
+    for (int k = 1; k < 4; k++)
+      for (int j = 0; j < n * 4; j++)
+        vB[j] = vB[j] * (double)xsB[j] + coefsOut[indexB[j]][k];
+  }
+
+  // Fill A matrix (n rows, 5 columns)
+  double Amat[C22_GPU_MAX_W * 5];
+  for (int i = 0; i < 5 * n; i++) Amat[i] = 0.0;
+  {
+    int breakInd2 = 0;
+    for (int i = 0; i < 4 * n; i++) {
+      if (i / 4 >= br[1]) breakInd2 = 1;
+      Amat[(i % 4) + breakInd2 + (i / 4) * 5] = vB[i];
+    }
+  }
+
+  // Solve normal equations A^T*A * x = A^T*y  (5×5 system)
+  double ATA[5][5], ATy[5];
+  for (int r = 0; r < 5; r++) {
+    for (int c = 0; c < 5; c++) {
+      double s = 0.0;
+      for (int k = 0; k < n; k++) s += Amat[k * 5 + r] * Amat[k * 5 + c];
+      ATA[r][c] = s;
+    }
+    double s = 0.0;
+    for (int k = 0; k < n; k++) s += Amat[k * 5 + r] * y[k];
+    ATy[r] = s;
+  }
+  // Gaussian elimination on augmented [ATA | ATy]
+  double aug[5][6];
+  for (int r = 0; r < 5; r++) {
+    for (int c = 0; c < 5; c++) aug[r][c] = ATA[r][c];
+    aug[r][5] = ATy[r];
+  }
+  for (int col = 0; col < 5; col++)
+    for (int row = col + 1; row < 5; row++) {
+      if (fabs(aug[col][col]) < 1e-30) continue;
+      double f = aug[row][col] / aug[col][col];
+      for (int k = col; k <= 5; k++) aug[row][k] -= f * aug[col][k];
+    }
+  double x[5];
+  for (int r = 4; r >= 0; r--) {
+    x[r] = aug[r][5];
+    for (int c = r + 1; c < 5; c++) x[r] -= aug[r][c] * x[c];
+    x[r] = (fabs(aug[r][r]) > 1e-30) ? x[r] / aug[r][r] : 0.0;
+  }
+
+  // C_mat[5][8]: combine piece coefs
+  double C_mat[5][8];
+  for (int i = 0; i < 5; i++)
+    for (int j = 0; j < 8; j++) C_mat[i][j] = 0.0;
+  for (int i = 0; i < 32; i++) {
+    int CRow = i % 4 + (i / 4) % 2;
+    int CCol = i / 4;
+    int coefRow = i % 8;
+    int coefCol = i / 8;
+    C_mat[CRow][CCol] = coefsOut[coefRow][coefCol];
+  }
+
+  // coefsSpline[2][4]: final piecewise polynomial coefficients
+  double coefsSpline[2][4];
+  for (int i = 0; i < 2; i++)
+    for (int j = 0; j < 4; j++) coefsSpline[i][j] = 0.0;
+  for (int j = 0; j < 8; j++) {
+    int coefCol = j / 2;
+    int coefRow = j % 2;
+    for (int i = 0; i < 5; i++)
+      coefsSpline[coefRow][coefCol] += C_mat[i][j] * x[i];
+  }
+
+  // Evaluate piecewise polynomial using Horner's method
+  for (int i = 0; i < n; i++) {
+    int sh = (i < br[1]) ? 0 : 1;
+    yOut[i] = coefsSpline[sh][0];
+  }
+  for (int k = 1; k < 4; k++) {
+    for (int j = 0; j < n; j++) {
+      int sh = (j < br[1]) ? 0 : 1;
+      yOut[j] = yOut[j] * (double)(j - br[1] * sh) + coefsSpline[sh][k];
+    }
+  }
+}
+
+// ============================================================================
 // ── Feature 10: PD_PeriodicityWang_th0_01 ───────────────────────────────────
-// Approximation: uses quadratic detrend instead of full spline fit.
+// Exact port: spline detrend (gpu_splinefit) + Pearson autocov
+// (gpu_autocov_cov_mean).
 // ============================================================================
 __device__ __noinline__ static int gpu_PD_PeriodicityWang(const double* z,
                                                           int W, double* tmp) {
-  // Quadratic detrend: fit y = a + b*t + c*t² using OLS
-  // Normal equations for 3 coefficients
-  double sx = 0, sx2 = 0, sx3 = 0, sx4 = 0, sy = 0, sxy = 0, sx2y = 0;
-  for (int i = 0; i < W; i++) {
-    double t = i, t2 = t * t;
-    sx += t;
-    sx2 += t2;
-    sx3 += t2 * t;
-    sx4 += t2 * t2;
-    sy += z[i];
-    sxy += t * z[i];
-    sx2y += t2 * z[i];
-  }
-  // 3×3 system [W,sx,sx2; sx,sx2,sx3; sx2,sx3,sx4] * [a;b;c] = [sy;sxy;sx2y]
-  double A[3][3] = {{(double)W, sx, sx2}, {sx, sx2, sx3}, {sx2, sx3, sx4}};
-  double rhs[3] = {sy, sxy, sx2y};
-  // Gaussian elimination (3×3)
-  double coef[3] = {0, 0, 0};
-  double aug[3][4];
-  for (int r = 0; r < 3; r++) {
-    for (int c = 0; c < 3; c++) aug[r][c] = A[r][c];
-    aug[r][3] = rhs[r];
-  }
-  for (int col = 0; col < 3; col++) {
-    for (int row = col + 1; row < 3; row++) {
-      if (fabs(aug[col][col]) < 1e-30) continue;
-      double f = aug[row][col] / aug[col][col];
-      for (int k = col; k <= 3; k++) aug[row][k] -= f * aug[col][k];
-    }
-  }
-  for (int r = 2; r >= 0; r--) {
-    coef[r] = aug[r][3];
-    for (int c = r + 1; c < 3; c++) coef[r] -= aug[r][c] * coef[c];
-    if (fabs(aug[r][r]) > 1e-30)
-      coef[r] /= aug[r][r];
-    else
-      coef[r] = 0;
-  }
+  // tmp (size W, from outer function's tmp_sort) used as spline scratch
+  gpu_splinefit(z, W, tmp);
 
-  // detrend
-  int acmax = (int)ceil((double)W / 3.0);
+  // detrend: ySub = z - spline
   double ySub[C22_GPU_MAX_W];
-  for (int i = 0; i < W; i++) {
-    double trend = coef[0] + coef[1] * i + coef[2] * (double)(i * i);
-    ySub[i] = z[i] - trend;
-  }
+  for (int i = 0; i < W; i++) ySub[i] = z[i] - tmp[i];
 
-  // autocov of detrended signal — use per-element divisor so the 0.01
-  // peak-trough threshold (calibrated for per-element values) still works
+  // autocov of detrended signal (Pearson cov, matching CPU's autocov_lag)
+  int acmax = (int)ceil((double)W / 3.0);
   double acf[C22_GPU_MAX_W];
   for (int lag = 1; lag <= acmax; lag++)
-    acf[lag - 1] = gpu_autocov_lag_per_elem(ySub, W, lag);
+    acf[lag - 1] = gpu_autocov_cov_mean(ySub, W, lag);
 
-  // find troughs and peaks
+  // find troughs and peaks in ACF
   double troughs[C22_GPU_MAX_W], peaks[C22_GPU_MAX_W];
   int nTroughs = 0, nPeaks = 0;
   for (int i = 1; i < acmax - 1; i++) {
@@ -580,11 +783,12 @@ __device__ __noinline__ static int gpu_PD_PeriodicityWang(const double* z,
       peaks[nPeaks++] = i;
   }
 
+  // first peak that satisfies: trough before it, peak-trough >= 0.01, peak > 0
   for (int i = 0; i < nPeaks; i++) {
     int iPeak = (int)peaks[i];
     double thePeak = acf[iPeak];
     int j = -1;
-    while (j + 1 < nTroughs && troughs[j + 1] < iPeak) j++;
+    while (j + 1 < nTroughs && (int)troughs[j + 1] < iPeak) j++;
     if (j < 0) continue;
     int iTrough = (int)troughs[j];
     double theTrough = acf[iTrough];
