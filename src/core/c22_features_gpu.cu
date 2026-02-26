@@ -719,7 +719,10 @@ __device__ __noinline__ static void gpu_SP_Summaries_welch_rect(
   if (NFFT > C22_GPU_SP_NFFT) NFFT = C22_GPU_SP_NFFT;
 
   double m = gpu_mean(z, W);
-  double KMU = (double)NFFT * (double)NFFT;  // rect window, k=1, ||w||²=W≈NFFT
+  // KMU = k * ||w||²  (Welch normalisation factor)
+  // k=1 window (floor(W/(W/2))-1=1), rectangular window ||w||² = W.
+  // Bug fix: was NFFT*NFFT which is 64²=4096 vs correct W=50 → 82× error.
+  double KMU = (double)W;
 
   // Single Welch window (k=1 for W≈NFFT)
   double P[C22_GPU_SP_NFFT] = {};
