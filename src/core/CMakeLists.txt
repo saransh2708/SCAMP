@@ -51,7 +51,14 @@ set_source_files_properties(${C22_C_SOURCES} PROPERTIES
 
 # C22 Profile computation engine
 if (CMAKE_CUDA_COMPILER)
-  add_library(c22_profile_gpu ${CMAKE_CURRENT_SOURCE_DIR}/c22_profile_gpu.cu)
+  # c22_profile_gpu_lib: tiled dot-product kernels (original)
+  # c22_features_gpu_lib: per-subsequence feature extraction kernels (new)
+  # Both are compiled into a single CUDA object library so they share device
+  # symbols (e.g. c22_compute_features_kernel referenced from c22_profile_gpu).
+  add_library(c22_profile_gpu
+    ${CMAKE_CURRENT_SOURCE_DIR}/c22_profile_gpu.cu
+    ${CMAKE_CURRENT_SOURCE_DIR}/c22_features_gpu.cu
+  )
   target_compile_definitions(c22_profile_gpu PUBLIC -D_HAS_CUDA_)
   add_library(c22_profile ${CMAKE_CURRENT_SOURCE_DIR}/c22_profile.cpp)
   target_link_libraries(c22_profile c22_features c22_profile_gpu Threads::Threads)

@@ -188,13 +188,38 @@ C22ProfileResult c22_profile_abjoin_cpu(const std::vector<double>& timeseries_a,
 
 // ============================================================================
 // GPU Implementation — delegates to CUDA kernels defined in c22_profile_gpu.cu
-// Feature computation runs on CPU; only the O(N²) dot product search runs on
-// GPU.
+//
+// Resource-aware strategy:
+//   window ≤ 256: ALL-GPU path — features AND dot product on GPU.
+//                 The raw timeseries is transferred to the GPU; the GPU
+//                 computes N×22 features (one thread per subsequence), then
+//                 runs the tiled dot product search, all without any CPU
+//                 feature work.  PCIe traffic is minimised (N*8 bytes in vs
+//                 N*22*8 bytes if features were computed on CPU first).
+//   window > 256: HYBRID path — features on CPU (multi-threaded), dot product
+//                 on GPU.  Falls back gracefully because the GPU kernel uses
+//                 fixed stack arrays sized for window ≤ 256.
 // ============================================================================
 
 #ifdef _HAS_CUDA_
 
+// The maximum window size supported by the GPU feature kernel (must match
+// C22_GPU_MAX_W in c22_features_gpu.cu).
+static constexpr int kGpuMaxWindow = 256;
+
 extern "C" {
+// All-GPU paths (raw timeseries → features on GPU → dot product on GPU)
+void c22_profile_selfjoin_gpu_launch_from_ts(const double* h_ts, int ts_length,
+                                             int window, double* h_profile,
+                                             int* h_index, int N, int exclusion,
+                                             int gpu_id);
+void c22_profile_abjoin_gpu_launch_from_ts(const double* h_ts_a,
+                                           int ts_a_length,
+                                           const double* h_ts_b,
+                                           int ts_b_length, int window,
+                                           double* h_profile, int* h_index,
+                                           int NA, int NB, int gpu_id);
+// Hybrid paths (pre-computed CPU features → dot product on GPU)
 void c22_profile_selfjoin_gpu_launch(const double* h_features,
                                      double* h_profile, int* h_index, int N,
                                      int exclusion, int gpu_id);
@@ -211,23 +236,26 @@ C22ProfileResult c22_profile_selfjoin_gpu(const std::vector<double>& timeseries,
   if (N <= 0) return C22ProfileResult();
 
   const int exclusion = window_size / 4;
-
-  // Auto-detect CPU threads for feature computation
-  if (num_cpu_threads <= 0) {
-    num_cpu_threads = static_cast<int>(std::thread::hardware_concurrency());
-    if (num_cpu_threads <= 0) num_cpu_threads = 1;
-  }
-
-  // Step 1: Compute features on CPU (in parallel)
-  std::vector<C22FeatureVector> features =
-      compute_c22_vectors_parallel(timeseries, window_size, num_cpu_threads);
-  std::vector<double> F = flatten_features(features);
-
-  // Step 2: Run dot product search on GPU
   std::vector<double> profile(N);
   std::vector<int> index(N);
-  c22_profile_selfjoin_gpu_launch(F.data(), profile.data(), index.data(), N,
-                                  exclusion, gpu_id);
+
+  if (window_size <= kGpuMaxWindow) {
+    // ── All-GPU path: raw TS → GPU features + GPU dot product ────────────
+    c22_profile_selfjoin_gpu_launch_from_ts(
+        timeseries.data(), static_cast<int>(timeseries.size()), window_size,
+        profile.data(), index.data(), N, exclusion, gpu_id);
+  } else {
+    // ── Hybrid path: CPU features → GPU dot product ───────────────────────
+    if (num_cpu_threads <= 0) {
+      num_cpu_threads = static_cast<int>(std::thread::hardware_concurrency());
+      if (num_cpu_threads <= 0) num_cpu_threads = 1;
+    }
+    std::vector<C22FeatureVector> features =
+        compute_c22_vectors_parallel(timeseries, window_size, num_cpu_threads);
+    std::vector<double> F = flatten_features(features);
+    c22_profile_selfjoin_gpu_launch(F.data(), profile.data(), index.data(), N,
+                                    exclusion, gpu_id);
+  }
 
   C22ProfileResult result;
   result.profile = std::move(profile);
@@ -243,22 +271,30 @@ C22ProfileResult c22_profile_abjoin_gpu(const std::vector<double>& timeseries_a,
   const int NB = static_cast<int>(timeseries_b.size()) - window_size + 1;
   if (NA <= 0 || NB <= 0) return C22ProfileResult();
 
-  if (num_cpu_threads <= 0) {
-    num_cpu_threads = static_cast<int>(std::thread::hardware_concurrency());
-    if (num_cpu_threads <= 0) num_cpu_threads = 1;
-  }
-
-  std::vector<C22FeatureVector> features_a =
-      compute_c22_vectors_parallel(timeseries_a, window_size, num_cpu_threads);
-  std::vector<C22FeatureVector> features_b =
-      compute_c22_vectors_parallel(timeseries_b, window_size, num_cpu_threads);
-  std::vector<double> FA = flatten_features(features_a);
-  std::vector<double> FB = flatten_features(features_b);
-
   std::vector<double> profile(NA);
   std::vector<int> index(NA);
-  c22_profile_abjoin_gpu_launch(FA.data(), FB.data(), profile.data(),
-                                index.data(), NA, NB, gpu_id);
+
+  if (window_size <= kGpuMaxWindow) {
+    // ── All-GPU path ───────────────────────────────────────────────────────
+    c22_profile_abjoin_gpu_launch_from_ts(
+        timeseries_a.data(), static_cast<int>(timeseries_a.size()),
+        timeseries_b.data(), static_cast<int>(timeseries_b.size()), window_size,
+        profile.data(), index.data(), NA, NB, gpu_id);
+  } else {
+    // ── Hybrid path ────────────────────────────────────────────────────────
+    if (num_cpu_threads <= 0) {
+      num_cpu_threads = static_cast<int>(std::thread::hardware_concurrency());
+      if (num_cpu_threads <= 0) num_cpu_threads = 1;
+    }
+    std::vector<C22FeatureVector> features_a = compute_c22_vectors_parallel(
+        timeseries_a, window_size, num_cpu_threads);
+    std::vector<C22FeatureVector> features_b = compute_c22_vectors_parallel(
+        timeseries_b, window_size, num_cpu_threads);
+    std::vector<double> FA = flatten_features(features_a);
+    std::vector<double> FB = flatten_features(features_b);
+    c22_profile_abjoin_gpu_launch(FA.data(), FB.data(), profile.data(),
+                                  index.data(), NA, NB, gpu_id);
+  }
 
   C22ProfileResult result;
   result.profile = std::move(profile);

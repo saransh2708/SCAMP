@@ -1,16 +1,20 @@
 #pragma once
 
+#include <array>
 #include <cmath>
 #include <vector>
 
 namespace SCAMP {
 
-// C22 Feature Vector: Contains all 22 catch22 features
+// C22 Feature Vector: Contains all 22 catch22 features.
+// Uses std::array (stack-allocated, 22×8 = 176 bytes) so that the N
+// intermediate C22FeatureVector objects created during feature extraction
+// require zero heap allocations, keeping allocator pressure off the hot path.
 struct C22FeatureVector {
   static constexpr int NUM_FEATURES = 22;
-  std::vector<double> features;
+  std::array<double, NUM_FEATURES> features;
 
-  C22FeatureVector() : features(NUM_FEATURES, 0.0) {}
+  C22FeatureVector() { features.fill(0.0); }
 
   // Compute dot product with another C22 feature vector
   double dot_product(const C22FeatureVector& other) const {
