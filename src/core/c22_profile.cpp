@@ -205,9 +205,7 @@ C22ProfileResult c22_profile_abjoin_cpu(const std::vector<double>& timeseries_a,
 
 // The maximum window size supported by the GPU feature kernel (must match
 // C22_GPU_MAX_W in c22_features_gpu.cu).
-// Temporarily set to 0 to force hybrid path (CPU features + GPU dot product)
-// for diagnostics.  Set back to 256 when GPU features are confirmed correct.
-static constexpr int kGpuMaxWindow = 0;
+static constexpr int kGpuMaxWindow = 256;
 
 extern "C" {
 // All-GPU paths (raw timeseries → features on GPU → dot product on GPU)

@@ -149,25 +149,38 @@ __device__ static void gpu_linreg(const double* x, const double* y, int n,
   *b_out = (sy * sx2 - sx * sxy) / denom;
 }
 
-// autocov at lag for z-scored (mean≈0) data: sum(y[i]*y[i+lag]) / (n-lag)
+// Raw autocov sum at lag: sum(y[i]*y[i+lag]) — NOT divided by (n-lag).
+// Dividing by the lag-0 value (sum of squares) reproduces pycatch22's
+// co_autocorrs normalisation: ac[k] = sum(y*y[+k]) / sum(y²).
 __device__ static double gpu_autocov_lag(const double* y, int n, int lag) {
+  if (lag >= n) return 0.0;
+  double s = 0.0;
+  for (int i = 0; i < n - lag; i++) s += y[i] * y[i + lag];
+  return s;  // raw sum — caller divides by lag-0 for normalisation
+}
+
+// Per-element autocov: sum / (n-lag).  Used only by PD_PeriodicityWang
+// where the 0.01 threshold was calibrated for per-element values.
+__device__ static double gpu_autocov_lag_per_elem(const double* y, int n,
+                                                  int lag) {
   if (lag >= n) return 0.0;
   double s = 0.0;
   for (int i = 0; i < n - lag; i++) s += y[i] * y[i + lag];
   return s / (n - lag);
 }
 
-// autocorr at lag: normalised by lag-0 variance
+// autocorr at lag: ac[k] = sum(y*y[+k]) / sum(y²)  — matches pycatch22
 __device__ static double gpu_autocorr_lag(const double* y, int n, int lag) {
-  double var = gpu_autocov_lag(y, n, 0);
+  double var = gpu_autocov_lag(y, n, 0);  // = sum(y²)
   if (fabs(var) < 1e-30) return 0.0;
   return gpu_autocov_lag(y, n, lag) / var;
 }
 
 // Compute autocorrelations for lags 0..maxlag into out[] (size maxlag+1)
+// Formula: out[k] = sum(y[i]*y[i+k]) / sum(y[i]²)  — matches pycatch22
 __device__ static void gpu_co_autocorrs(const double* y, int n, double* out,
                                         int maxlag) {
-  double var = gpu_autocov_lag(y, n, 0);
+  double var = gpu_autocov_lag(y, n, 0);  // = sum(y²)
   double inv_var = (fabs(var) < 1e-30) ? 0.0 : 1.0 / var;
   for (int lag = 0; lag <= maxlag; lag++)
     out[lag] = gpu_autocov_lag(y, n, lag) * inv_var;
@@ -521,10 +534,11 @@ __device__ __noinline__ static int gpu_PD_PeriodicityWang(const double* z,
     ySub[i] = z[i] - trend;
   }
 
-  // autocov of detrended signal
+  // autocov of detrended signal — use per-element divisor so the 0.01
+  // peak-trough threshold (calibrated for per-element values) still works
   double acf[C22_GPU_MAX_W];
   for (int lag = 1; lag <= acmax; lag++)
-    acf[lag - 1] = gpu_autocov_lag(ySub, W, lag);
+    acf[lag - 1] = gpu_autocov_lag_per_elem(ySub, W, lag);
 
   // find troughs and peaks
   double troughs[C22_GPU_MAX_W], peaks[C22_GPU_MAX_W];
