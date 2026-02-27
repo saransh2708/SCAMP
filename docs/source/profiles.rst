@@ -36,7 +36,16 @@ Pooled distance matrix summary:
   
   .. image:: /images/distance_matrix_summary.png
     :alt: Example matrix summary 
-  
+
+C22 Profile (catch-22 feature similarity):
+  The C22 Profile replaces the Euclidean distance computation of the traditional Matrix Profile with catch-22 (C22) feature vector dot product similarity. For each subsequence, SCAMP computes a 22-element feature vector using the catch-22 feature set, then finds the most similar other subsequence by maximising the dot product between feature vectors.
+
+  This is useful when statistical features of a time series, rather than its shape, contain the relevant information. The C22 Profile supports both self-join (finding similar subsequences within a single time series) and AB-join (finding similar subsequences between two time series).
+
+  The implementation uses adaptive multi-level parallelism for CPU feature computation and supports GPU acceleration for both feature extraction (window ≤ 256) and the dot product search.
+
+  * pyscamp functions: ``selfjoin_c22``, ``abjoin_c22``
+
 
 
 

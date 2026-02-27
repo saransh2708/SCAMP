@@ -31,8 +31,13 @@ struct C22FeatureVector {
 C22FeatureVector compute_c22_features(const std::vector<double>& timeseries,
                                       int start_idx, int window_size);
 
-// Compute C22 feature vectors for all subsequences in parallel
-// Returns vector of C22FeatureVector, one per subsequence
+// Compute C22 feature vectors for all subsequences in parallel.
+// Uses adaptive two-level parallelism:
+//   N >= hw: Level 1 only  — hw threads, ceil(N/hw) subsequences each.
+//   N <  hw: Level 1+3     — N threads (one per subseq), hw/N feature threads
+//                            each, so spare CPU cores are not wasted.
+// Total threads ≤ hw — no oversubscription.
+// num_threads: desired hardware concurrency override (0 = auto-detect).
 std::vector<C22FeatureVector> compute_c22_vectors_parallel(
     const std::vector<double>& timeseries, int window_size,
     int num_threads = 0);  // 0 = auto-detect

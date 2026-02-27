@@ -126,4 +126,12 @@ Python Example
     # KNN Ab join with threshold, outputting pearson correlation
     knn = mp.abjoin_knn(a, b, sublen, k, threshold=0.90, pearson=True)
 
+  # C22 Profile: feature-based similarity using catch-22 feature vectors
+  # Self-join: find the most similar subsequence (by C22 features) within a time series
+  profile, index = mp.selfjoin_c22(a, sublen)
+  # AB-join: for each subsequence in a, find the most similar in b
+  profile, index = mp.abjoin_c22(a, b, sublen)
+  # C22 Profile with explicit thread count and CPU-only
+  profile, index = mp.selfjoin_c22(a, sublen, threads=4, gpu=False)
+
 

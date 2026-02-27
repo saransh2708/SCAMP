@@ -48,6 +48,10 @@ set_source_files_properties(${C22_C_SOURCES} PROPERTIES
   C_STANDARD 99
   C_STANDARD_REQUIRED ON
 )
+# Apply same optimization flags to pycatch22 C files for SIMD auto-vectorization (Level 4)
+set_source_files_properties(${C22_C_SOURCES} PROPERTIES
+  COMPILE_FLAGS "${SCAMP_OPTIMIZED_BUILD_FLAGS}"
+)
 
 # C22 Profile computation engine
 if (CMAKE_CUDA_COMPILER)

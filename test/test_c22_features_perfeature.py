@@ -57,13 +57,13 @@ print()
 
 # ── CPU profile ──────────────────────────────────────────────────────────────
 print("Computing CPU profile... ", end="", flush=True)
-p_cpu, idx_cpu = pyscamp.selfjoin_c22(ts, W, threads=8, use_gpu=False)
+p_cpu, idx_cpu = pyscamp.selfjoin_c22(ts, W, threads=8, gpu=False)
 p_cpu = np.array(p_cpu)
 print("done")
 
 # ── GPU profile ──────────────────────────────────────────────────────────────
 print("Computing GPU profile... ", end="", flush=True)
-p_gpu, idx_gpu = pyscamp.selfjoin_c22(ts, W, threads=8, use_gpu=True)
+p_gpu, idx_gpu = pyscamp.selfjoin_c22(ts, W, threads=8, gpu=True)
 p_gpu = np.array(p_gpu)
 print("done")
 

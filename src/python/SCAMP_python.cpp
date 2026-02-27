@@ -504,7 +504,9 @@ PYBIND11_MODULE(pyscamp, m) {
            selfjoin_knn
            abjoin_knn
            selfjoin_matrix
-           abjoin_matrix 
+           abjoin_matrix
+           selfjoin_c22
+           abjoin_c22
     )pbdoc";
 
   m.def("gpu_supported", GPU_supported, R"pbdoc(

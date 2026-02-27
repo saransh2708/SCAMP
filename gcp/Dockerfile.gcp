@@ -1,0 +1,79 @@
+# Dockerfile.gcp — GCP Cloud Run / Vertex AI deployment image for C22 Profile
+#
+# Supports two compute targets:
+#   CPU-only:  built from this Dockerfile as-is (default).
+#   GPU:       pass --build-arg BASE=nvidia/cuda:12.3.1-devel-ubuntu22.04
+#              and deploy to a GCP instance with an attached GPU.
+#
+# Build (CPU):
+#   docker build -f gcp/Dockerfile.gcp -t scamp-c22-gcp .
+#
+# Build (GPU):
+#   docker build -f gcp/Dockerfile.gcp \
+#     --build-arg BASE=nvidia/cuda:12.3.1-devel-ubuntu22.04 \
+#     -t scamp-c22-gcp-gpu .
+#
+# Run:
+#   docker run --rm scamp-c22-gcp \
+#     python3 /app/gcp/run_c22_gcp.py --input /path/to/ts.csv --window 100
+
+ARG BASE=ubuntu:22.04
+FROM ${BASE} AS builder
+
+LABEL maintainer="SCAMP project"
+LABEL description="C22 Profile (catch22 Matrix Profile) – GCP deployment"
+
+ENV DEBIAN_FRONTEND=noninteractive
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    build-essential \
+    cmake \
+    ninja-build \
+    python3 \
+    python3-pip \
+    python3-dev \
+    git \
+    && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /app
+
+# Copy source tree
+COPY . /app
+
+# Build pyscamp (CPU or GPU depending on BASE image)
+RUN rm -rf /app/build && \
+    mkdir /app/build && \
+    cd /app/build && \
+    cmake \
+      -G Ninja \
+      -DCMAKE_BUILD_TYPE=Release \
+      -DBUILD_PYTHON_MODULE=TRUE \
+      -DCMAKE_LIBRARY_OUTPUT_DIRECTORY=/app/build/src/python \
+      .. && \
+    cmake --build . --parallel
+
+# ── Runtime stage ──────────────────────────────────────────────────────────────
+# For GPU builds the runtime base must include the CUDA runtime.
+# Re-use the same ARG to allow GPU runtime images to be selected at build time.
+ARG BASE=ubuntu:22.04
+FROM ${BASE} AS runtime
+
+ENV DEBIAN_FRONTEND=noninteractive
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    python3 \
+    python3-pip \
+    && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /app
+
+# Copy built extension and source tree
+COPY --from=builder /app/build/src/python /app/build/src/python
+COPY --from=builder /app/gcp /app/gcp
+
+# Install Python runtime dependencies
+RUN pip3 install --no-cache-dir numpy
+
+ENV PYTHONPATH=/app/build/src/python
+
+ENTRYPOINT ["python3", "/app/gcp/run_c22_gcp.py"]

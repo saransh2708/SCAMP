@@ -64,6 +64,88 @@ extern void zscore_norm2(const double a[], const int size, double b[]);
 
 namespace SCAMP {
 
+// ============================================================================
+// Internal: Compute a single catch22 feature by index (0..21).
+// Used by Level 3 parallelism to dispatch individual features to threads.
+// Feature ordering must exactly match compute_c22_features_internal().
+// ============================================================================
+static double compute_single_feature(int f, const double* z, int n) {
+  switch (f) {
+    case 0:  return DN_HistogramMode_5(z, n);
+    case 1:  return DN_HistogramMode_10(z, n);
+    case 2:  return CO_f1ecac(z, n);
+    case 3:  return static_cast<double>(CO_FirstMin_ac(z, n));
+    case 4:  return CO_HistogramAMI_even_2_5(z, n);
+    case 5:  return CO_trev_1_num(z, n);
+    case 6:  return MD_hrv_classic_pnn40(z, n);
+    case 7:  return SB_BinaryStats_mean_longstretch1(z, n);
+    case 8:  return SB_TransitionMatrix_3ac_sumdiagcov(z, n);
+    case 9:  return static_cast<double>(PD_PeriodicityWang_th0_01(z, n));
+    case 10: return CO_Embed2_Dist_tau_d_expfit_meandiff(z, n);
+    case 11: return IN_AutoMutualInfoStats_40_gaussian_fmmi(z, n);
+    case 12: return FC_LocalSimple_mean1_tauresrat(z, n);
+    case 13: return DN_OutlierInclude_p_001_mdrmd(z, n);
+    case 14: return DN_OutlierInclude_n_001_mdrmd(z, n);
+    case 15: return SP_Summaries_welch_rect_area_5_1(z, n);
+    case 16: return SB_BinaryStats_diff_longstretch0(z, n);
+    case 17: return SB_MotifThree_quantile_hh(z, n);
+    case 18: return SC_FluctAnal_2_rsrangefit_50_1_logi_prop_r1(z, n);
+    case 19: return SC_FluctAnal_2_dfa_50_1_2_logi_prop_r1(z, n);
+    case 20: return SP_Summaries_welch_rect_centroid(z, n);
+    case 21: return FC_LocalSimple_mean3_stderr(z, n);
+    default: return 0.0;
+  }
+}
+
+// ============================================================================
+// Internal: Compute all 22 features of ONE subsequence using nthreads threads.
+//
+// Level 3 parallelism: thread t handles features t, t+nthreads, t+2*nthreads,
+// ... (round-robin).  Round-robin naturally spreads expensive features across
+// threads: features 13,14 (DN_OutlierInclude) and 18,19 (SC_FluctAnal) land
+// on different threads, preventing one thread from monopolising runtime.
+//
+// Thread safety: each thread writes to disjoint indices of out.features[],
+// so no synchronisation is needed.
+//
+// When nthreads == 1 this degenerates to a simple sequential loop with no
+// thread-spawn overhead.
+// ============================================================================
+static void compute_c22_features_l3(const double* z, int n,
+                                    C22FeatureVector& out, int nthreads) {
+  const int NF = C22FeatureVector::NUM_FEATURES;
+
+  if (nthreads <= 1) {
+    // Fast path: no thread overhead
+    for (int f = 0; f < NF; ++f) {
+      double v = compute_single_feature(f, z, n);
+      out.features[f] = std::isfinite(v) ? v : 0.0;
+    }
+    return;
+  }
+
+  // Spawn nthreads-1 worker threads; main thread handles thread 0's work too.
+  std::vector<std::thread> workers;
+  workers.reserve(nthreads - 1);
+
+  for (int t = 1; t < nthreads; ++t) {
+    workers.emplace_back([t, nthreads, z, n, &out]() {
+      for (int f = t; f < C22FeatureVector::NUM_FEATURES; f += nthreads) {
+        double v = compute_single_feature(f, z, n);
+        out.features[f] = std::isfinite(v) ? v : 0.0;
+      }
+    });
+  }
+
+  // Thread 0 work (main thread)
+  for (int f = 0; f < NF; f += nthreads) {
+    double v = compute_single_feature(f, z, n);
+    out.features[f] = std::isfinite(v) ? v : 0.0;
+  }
+
+  for (auto& w : workers) w.join();
+}
+
 C22FeatureVector compute_c22_features_internal(const double* data, int size) {
   C22FeatureVector vec;
 
@@ -71,39 +153,8 @@ C22FeatureVector compute_c22_features_internal(const double* data, int size) {
   // (see pycatch22/src/C/main.c line 70: zscore_norm2(y, size, y_zscored))
   std::vector<double> zscored(size);
   zscore_norm2(data, size, zscored.data());
-  const double* z = zscored.data();
 
-  // Compute all 22 catch22 features in order
-  vec.features[0] = DN_HistogramMode_5(z, size);
-  vec.features[1] = DN_HistogramMode_10(z, size);
-  vec.features[2] = CO_f1ecac(z, size);
-  vec.features[3] = static_cast<double>(CO_FirstMin_ac(z, size));
-  vec.features[4] = CO_HistogramAMI_even_2_5(z, size);
-  vec.features[5] = CO_trev_1_num(z, size);
-  vec.features[6] = MD_hrv_classic_pnn40(z, size);
-  vec.features[7] = SB_BinaryStats_mean_longstretch1(z, size);
-  vec.features[8] = SB_TransitionMatrix_3ac_sumdiagcov(z, size);
-  vec.features[9] = static_cast<double>(PD_PeriodicityWang_th0_01(z, size));
-  vec.features[10] = CO_Embed2_Dist_tau_d_expfit_meandiff(z, size);
-  vec.features[11] = IN_AutoMutualInfoStats_40_gaussian_fmmi(z, size);
-  vec.features[12] = FC_LocalSimple_mean1_tauresrat(z, size);
-  vec.features[13] = DN_OutlierInclude_p_001_mdrmd(z, size);
-  vec.features[14] = DN_OutlierInclude_n_001_mdrmd(z, size);
-  vec.features[15] = SP_Summaries_welch_rect_area_5_1(z, size);
-  vec.features[16] = SB_BinaryStats_diff_longstretch0(z, size);
-  vec.features[17] = SB_MotifThree_quantile_hh(z, size);
-  vec.features[18] = SC_FluctAnal_2_rsrangefit_50_1_logi_prop_r1(z, size);
-  vec.features[19] = SC_FluctAnal_2_dfa_50_1_2_logi_prop_r1(z, size);
-  vec.features[20] = SP_Summaries_welch_rect_centroid(z, size);
-  vec.features[21] = FC_LocalSimple_mean3_stderr(z, size);
-
-  // Replace NaN/Inf values with 0.0 for safe dot product computation
-  for (int i = 0; i < C22FeatureVector::NUM_FEATURES; ++i) {
-    if (!std::isfinite(vec.features[i])) {
-      vec.features[i] = 0.0;
-    }
-  }
-
+  compute_c22_features_l3(zscored.data(), size, vec, /*nthreads=*/1);
   return vec;
 }
 
@@ -119,7 +170,23 @@ C22FeatureVector compute_c22_features(const std::vector<double>& timeseries,
   return compute_c22_features_internal(data, window_size);
 }
 
-// Parallel computation of C22 vectors for all subsequences
+// ============================================================================
+// Parallel computation of C22 vectors for all N subsequences.
+//
+// Adaptive two-level dispatch:
+//
+//   hw = hardware_concurrency()
+//   if N >= hw:
+//     Level 1 only — hw threads, each processes ceil(N/hw) subsequences
+//     sequentially.  All CPU cores stay busy.
+//     l1_threads = hw,  l3_threads = 1
+//   else (N < hw):
+//     Level 1+3 — N threads (one per subsequence); each subsequence uses
+//     hw/N feature threads (Level 3) so spare cores are not wasted.
+//     l1_threads = N,  l3_threads = max(1, hw/N)
+//
+// Total threads spawned ≤ l1_threads × l3_threads ≤ hw — no oversubscription.
+// ============================================================================
 std::vector<C22FeatureVector> compute_c22_vectors_parallel(
     const std::vector<double>& timeseries, int window_size, int num_threads) {
   int num_subsequences = static_cast<int>(timeseries.size()) - window_size + 1;
@@ -129,38 +196,50 @@ std::vector<C22FeatureVector> compute_c22_vectors_parallel(
 
   std::vector<C22FeatureVector> result(num_subsequences);
 
-  // Auto-detect number of threads; fall back to 1 if detection fails
-  if (num_threads <= 0) {
-    num_threads = std::thread::hardware_concurrency();
-    if (num_threads <= 0) {
-      num_threads = 1;
-    }
+  // Auto-detect hardware concurrency; fall back to 1 if detection fails
+  int hw = num_threads;
+  if (hw <= 0) {
+    hw = static_cast<int>(std::thread::hardware_concurrency());
+    if (hw <= 0) hw = 1;
   }
 
-  // Cap threads to number of subsequences (no point spawning idle threads)
-  if (num_threads > num_subsequences) {
-    num_threads = num_subsequences;
+  // Adaptive dispatch: Level 1 only vs Level 1+3
+  int l1_threads, l3_threads;
+  if (num_subsequences >= hw) {
+    // Enough subsequences to keep all cores busy at Level 1
+    l1_threads = hw;
+    l3_threads = 1;
+  } else {
+    // Fewer subsequences than cores — use Level 3 to fill spare cores
+    l1_threads = num_subsequences;
+    l3_threads = std::max(1, hw / num_subsequences);
   }
 
-  // Parallel computation: each thread processes a range of subsequences
+  // Parallel computation: each Level-1 thread processes a range of
+  // subsequences, calling compute_c22_features_l3() for each.
   std::vector<std::thread> threads;
   int subsequences_per_thread =
-      (num_subsequences + num_threads - 1) / num_threads;
+      (num_subsequences + l1_threads - 1) / l1_threads;
 
-  for (int t = 0; t < num_threads; ++t) {
+  for (int t = 0; t < l1_threads; ++t) {
     int start = t * subsequences_per_thread;
     int end = std::min(start + subsequences_per_thread, num_subsequences);
 
     if (start < num_subsequences) {
-      threads.emplace_back([&timeseries, window_size, start, end, &result]() {
-        for (int i = start; i < end; ++i) {
-          result[i] = compute_c22_features(timeseries, i, window_size);
-        }
-      });
+      threads.emplace_back(
+          [&timeseries, window_size, start, end, &result, l3_threads]() {
+            std::vector<double> zscored(window_size);
+            for (int i = start; i < end; ++i) {
+              const double* data = timeseries.data() + i;
+              zscore_norm2(data, window_size, zscored.data());
+              compute_c22_features_l3(zscored.data(), window_size, result[i],
+                                      l3_threads);
+            }
+          });
     }
   }
 
-  // Wait for all threads to complete
+  // Wait for all Level-1 threads to complete
   for (auto& thread : threads) {
     thread.join();
   }

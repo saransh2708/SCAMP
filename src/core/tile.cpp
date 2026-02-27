@@ -1,4 +1,5 @@
 #include "tile.h"
+
 #include <algorithm>
 #include <functional>
 #ifdef _HAS_CUDA_
@@ -376,6 +377,10 @@ SCAMPError_t Tile::InitProfile(Profile *profile_a, Profile *profile_b) {
               sizeof(float) * profile_a->data[0].float_value.size(), false);
       break;
     }
+    case PROFILE_TYPE_C22:
+      // C22 profile is computed outside of SCAMP_Operation (in do_SCAMP_C22),
+      // so this tile code path is never reached for C22.
+      return SCAMP_FUNCTIONALITY_UNIMPLEMENTED;
     case PROFILE_TYPE_FREQUENCY_THRESH:
     case PROFILE_TYPE_KNN:
     case PROFILE_TYPE_1NN_MULTIDIM:
