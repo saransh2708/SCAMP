@@ -11,10 +11,9 @@
 //   - Autocorrelation uses direct O(W²) loops instead of FFT — simpler device
 //     code and competitive for W ≤ 256.
 //   - Spectral features (SP_Summaries) use an in-register iterative FFT.
-//   - PD_PeriodicityWang uses a quadratic polynomial detrend (3 coefficients)
-//     instead of the full spline fit, which avoids large matrix allocations on
-//     device.  The result is numerically close but not bit-identical to the CPU
-//     for that single feature; all other 21 features are exact.
+//   - PD_PeriodicityWang uses the full spline fit (exact port of
+//     pycatch22/src/C/splinefit.c) and cov_mean autocorrelation matching the
+//     CPU implementation.  All 22 features should match the CPU exactly.
 //
 // Stack per thread at W=256: ~58 KB (dominated by DN_OutlierInclude working
 // arrays and the inlined device function locals).  We set
@@ -159,22 +158,15 @@ __device__ static double gpu_autocov_lag(const double* y, int n, int lag) {
   return s;  // raw sum — caller divides by lag-0 for normalisation
 }
 
-// Pearson covariance at lag: cov_mean(y, y+lag, n-lag)
-// Matches pycatch22's autocov_lag = cov_mean(x, &x[lag], size-lag).
+// Autocovariance at lag: matches pycatch22's autocov_lag = cov_mean(x, &x[lag], size-lag).
+// cov_mean(x, y, n) = sum(x[i]*y[i]) / n  — NO mean subtraction, divides by n.
 // Used only by PD_PeriodicityWang.
 __device__ static double gpu_autocov_cov_mean(const double* y, int n, int lag) {
-  if (lag >= n || n - lag <= 1) return 0.0;
+  if (lag >= n) return 0.0;
   int sz = n - lag;
-  double mx = 0.0, my = 0.0;
-  for (int i = 0; i < sz; i++) {
-    mx += y[i];
-    my += y[i + lag];
-  }
-  mx /= sz;
-  my /= sz;
-  double cov = 0.0;
-  for (int i = 0; i < sz; i++) cov += (y[i] - mx) * (y[i + lag] - my);
-  return cov / (sz - 1);
+  double s = 0.0;
+  for (int i = 0; i < sz; i++) s += y[i] * y[i + lag];
+  return s / sz;
 }
 
 // autocorr at lag: ac[k] = sum(y*y[+k]) / sum(y²)  — matches co_autocorrs
@@ -1070,21 +1062,71 @@ __device__ static double gpu_SB_MotifThree_quantile_hh(const double* z, int W,
 }
 
 // ============================================================================
+// ── Internal: breakpoint regression for SC_FluctAnal ─────────────────────────
+// Finds the optimal two-segment linear fit breakpoint on log-log data.
+// Returns (firstMinInd + 1) / ntt  — matching pycatch22 indexing exactly.
+// sserr[k] = norm(residuals_seg1) + norm(residuals_seg2)   (sum of L2 norms)
+// ============================================================================
+__device__ static double gpu_sc_fluct_breakpoint(const double* logtt,
+                                                  const double* logFF, int ntt,
+                                                  double* sserr) {
+  int minPoints = 6;
+  int nsserr = ntt - 2 * minPoints + 1;
+  if (nsserr <= 0) return 0.0;
+
+  double bestSS = DBL_MAX;
+  double firstMinInd = 0.0;
+
+  for (int i = minPoints; i < ntt - minPoints + 1; i++) {
+    double m1, b1, m2, b2;
+    gpu_linreg(logtt, logFF, i, &m1, &b1);
+    gpu_linreg(logtt + (i - 1), logFF + (i - 1), ntt - i + 1, &m2, &b2);
+
+    // Compute L2 norm of residuals for first segment
+    double ss1 = 0.0;
+    for (int j = 0; j < i; j++) {
+      double e = logtt[j] * m1 + b1 - logFF[j];
+      ss1 += e * e;
+    }
+
+    // Compute L2 norm of residuals for second segment
+    double ss2 = 0.0;
+    for (int j = 0; j < ntt - i + 1; j++) {
+      double e = logtt[j + i - 1] * m2 + b2 - logFF[j + i - 1];
+      ss2 += e * e;
+    }
+
+    // pycatch22 uses norm_(buffer, n) = sqrt(sum(e²)), then adds the two norms
+    double sval = sqrt(ss1) + sqrt(ss2);
+    sserr[i - minPoints] = sval;
+
+    if (sval < bestSS) {
+      bestSS = sval;
+      // pycatch22: firstMinInd = (sserr_idx) + minPoints - 1
+      //          = (i - minPoints) + minPoints - 1  =  i - 1
+      firstMinInd = (double)(i - 1);
+    }
+  }
+  return (firstMinInd + 1.0) / (double)ntt;
+}
+
+// ============================================================================
 // ── Features 19+20: SC_FluctAnal ─────────────────────────────────────────────
-// Returns rsrangefit in [0], dfa in [1]
+// rsrangefit uses lag=1;  dfa uses lag=2  (must match pycatch22 calling
+// convention in SC_FluctAnal.c).
 // ============================================================================
 __device__ __noinline__ static void gpu_SC_FluctAnal(
-    const double* z, int W, int lag, double* rsrange_out, double* dfa_out,
+    const double* z, int W, double* rsrange_out, double* dfa_out,
     double* yCS,    // W doubles
     double* xReg,   // W/2 doubles
-    double* FArr,   // 50 doubles
     double* logtt,  // 50 doubles
     double* logFF,  // 50 doubles
     double* sserr,  // 50 doubles
     double* buf) {  // W/2 doubles
-  // log-spaced tau vector
+  // ---- Shared: log-spaced tau vector (independent of lag) ----
   double linLow = log(5.0);
-  double linHigh = log((double)W / 2.0);
+  // pycatch22 uses integer division: linHigh = log(size/2)
+  double linHigh = log((double)(W / 2));
   int nTauSteps = 50;
   double tauStep = (linHigh - linLow) / (nTauSteps - 1);
   int tau[50];
@@ -1106,102 +1148,78 @@ __device__ __noinline__ static void gpu_SC_FluctAnal(
     return;
   }
 
-  int sizeCS = W / lag;
-  yCS[0] = z[0];
-  for (int i = 0; i < sizeCS - 1; i++) yCS[i + 1] = yCS[i] + z[(i + 1) * lag];
-
   int maxTau = tau[nTau - 1];
   for (int i = 0; i < maxTau; i++) xReg[i] = (double)(i + 1);
 
-  // compute F for rsrange and dfa
-  double FArr_rs[50] = {}, FArr_dfa[50] = {};
-  for (int ti = 0; ti < nTau; ti++) {
-    int t = tau[ti];
-    int nBuf = sizeCS / t;
-    if (nBuf == 0) continue;
-    FArr_rs[ti] = 0;
-    FArr_dfa[ti] = 0;
-    for (int j = 0; j < nBuf; j++) {
-      double m_lr, b_lr;
-      gpu_linreg(xReg, yCS + j * t, t, &m_lr, &b_lr);
-      double rmin = DBL_MAX, rmax = -DBL_MAX;
-      double sse2 = 0;
-      for (int k = 0; k < t; k++) {
-        buf[k] = yCS[j * t + k] - (m_lr * (k + 1) + b_lr);
-        if (buf[k] < rmin) rmin = buf[k];
-        if (buf[k] > rmax) rmax = buf[k];
-        sse2 += buf[k] * buf[k];
+  // precompute log(tau)
+  for (int i = 0; i < nTau; i++) logtt[i] = log((double)tau[i]);
+
+  // ---- rsrangefit (lag = 1) ----
+  {
+    int lag = 1;
+    int sizeCS = W / lag;
+    yCS[0] = z[0];
+    for (int i = 0; i < sizeCS - 1; i++)
+      yCS[i + 1] = yCS[i] + z[(i + 1) * lag];
+
+    double FArr[50] = {};
+    for (int ti = 0; ti < nTau; ti++) {
+      int t = tau[ti];
+      int nBuf = sizeCS / t;
+      if (nBuf == 0) continue;
+      FArr[ti] = 0;
+      for (int j = 0; j < nBuf; j++) {
+        double m_lr, b_lr;
+        gpu_linreg(xReg, yCS + j * t, t, &m_lr, &b_lr);
+        double rmin = DBL_MAX, rmax = -DBL_MAX;
+        for (int k = 0; k < t; k++) {
+          buf[k] = yCS[j * t + k] - (m_lr * (k + 1) + b_lr);
+          if (buf[k] < rmin) rmin = buf[k];
+          if (buf[k] > rmax) rmax = buf[k];
+        }
+        FArr[ti] += (rmax - rmin) * (rmax - rmin);
       }
-      FArr_rs[ti] += (rmax - rmin) * (rmax - rmin);
-      FArr_dfa[ti] += sse2;
+      FArr[ti] = sqrt(FArr[ti] / nBuf);
     }
-    FArr_rs[ti] = sqrt(FArr_rs[ti] / nBuf);
-    FArr_dfa[ti] = sqrt(FArr_dfa[ti] / (nBuf * t));
+
+    for (int i = 0; i < nTau; i++)
+      logFF[i] = (FArr[i] > 0) ? log(FArr[i]) : -99.0;
+
+    *rsrange_out = gpu_sc_fluct_breakpoint(logtt, logFF, nTau, sserr);
   }
 
-  // log-log regression for both
-  for (int i = 0; i < nTau; i++) {
-    logtt[i] = log((double)tau[i]);
-  }
+  // ---- dfa (lag = 2) ----
+  {
+    int lag = 2;
+    int sizeCS = W / lag;
+    yCS[0] = z[0];
+    for (int i = 0; i < sizeCS - 1; i++)
+      yCS[i + 1] = yCS[i] + z[(i + 1) * lag];
 
-  int minPoints = 6, ntt = nTau;
-  int nsserr = ntt - 2 * minPoints + 1;
-  if (nsserr <= 0) {
-    *rsrange_out = 0;
-    *dfa_out = 0;
-    return;
-  }
+    double FArr[50] = {};
+    for (int ti = 0; ti < nTau; ti++) {
+      int t = tau[ti];
+      int nBuf = sizeCS / t;
+      if (nBuf == 0) continue;
+      FArr[ti] = 0;
+      for (int j = 0; j < nBuf; j++) {
+        double m_lr, b_lr;
+        gpu_linreg(xReg, yCS + j * t, t, &m_lr, &b_lr);
+        double sse = 0;
+        for (int k = 0; k < t; k++) {
+          double r = yCS[j * t + k] - (m_lr * (k + 1) + b_lr);
+          sse += r * r;
+        }
+        FArr[ti] += sse;
+      }
+      FArr[ti] = sqrt(FArr[ti] / (nBuf * t));
+    }
 
-  // rsrangefit
-  for (int i = 0; i < nTau; i++)
-    logFF[i] = (FArr_rs[i] > 0) ? log(FArr_rs[i]) : -99.0;
-  double bestRS = DBL_MAX;
-  double firstMinRS = 0;
-  for (int i = minPoints; i < ntt - minPoints + 1; i++) {
-    double m1, b1, m2, b2;
-    double ss = 0;
-    gpu_linreg(logtt, logFF, i, &m1, &b1);
-    gpu_linreg(logtt + (i - 1), logFF + (i - 1), ntt - i + 1, &m2, &b2);
-    for (int j = 0; j < i; j++) {
-      double e = logtt[j] * m1 + b1 - logFF[j];
-      ss += e * e;
-    }
-    for (int j = 0; j < ntt - i + 1; j++) {
-      double e = logtt[j + i - 1] * m2 + b2 - logFF[j + i - 1];
-      ss += e * e;
-    }
-    sserr[i - minPoints] = ss;
-    if (ss < bestRS) {
-      bestRS = ss;
-      firstMinRS = (double)(i + minPoints - 1 - 1);
-    }  // matches pycatch22 indexing
-  }
-  *rsrange_out = (firstMinRS + 1) / ntt;
+    for (int i = 0; i < nTau; i++)
+      logFF[i] = (FArr[i] > 0) ? log(FArr[i]) : -99.0;
 
-  // dfa
-  for (int i = 0; i < nTau; i++)
-    logFF[i] = (FArr_dfa[i] > 0) ? log(FArr_dfa[i]) : -99.0;
-  double bestDFA = DBL_MAX;
-  double firstMinDFA = 0;
-  for (int i = minPoints; i < ntt - minPoints + 1; i++) {
-    double m1, b1, m2, b2;
-    double ss = 0;
-    gpu_linreg(logtt, logFF, i, &m1, &b1);
-    gpu_linreg(logtt + (i - 1), logFF + (i - 1), ntt - i + 1, &m2, &b2);
-    for (int j = 0; j < i; j++) {
-      double e = logtt[j] * m1 + b1 - logFF[j];
-      ss += e * e;
-    }
-    for (int j = 0; j < ntt - i + 1; j++) {
-      double e = logtt[j + i - 1] * m2 + b2 - logFF[j + i - 1];
-      ss += e * e;
-    }
-    if (ss < bestDFA) {
-      bestDFA = ss;
-      firstMinDFA = (double)(i + minPoints - 1 - 1);
-    }
+    *dfa_out = gpu_sc_fluct_breakpoint(logtt, logFF, nTau, sserr);
   }
-  *dfa_out = (firstMinDFA + 1) / ntt;
 }
 
 // ============================================================================
@@ -1230,7 +1248,7 @@ __device__ static void c22_compute_one_subsequence(const double* sub, int W,
   // For SC_FluctAnal
   double sc_yCS[C22_GPU_MAX_W];
   double sc_xReg[C22_GPU_MAX_W / 2];
-  double sc_FArr[50], sc_logtt[50], sc_logFF[50], sc_sserr[50];
+  double sc_logtt[50], sc_logFF[50], sc_sserr[50];
   double sc_buf[C22_GPU_MAX_W / 2];
 
   // For SP_Summaries FFT
@@ -1299,7 +1317,7 @@ __device__ static void c22_compute_one_subsequence(const double* sub, int W,
   // ── Features 19+20: SC_FluctAnal ─────────────────────────────────────────
   {
     double rsrange, dfa;
-    gpu_SC_FluctAnal(z, W, 1, &rsrange, &dfa, sc_yCS, sc_xReg, sc_FArr,
+    gpu_SC_FluctAnal(z, W, &rsrange, &dfa, sc_yCS, sc_xReg,
                      sc_logtt, sc_logFF, sc_sserr, sc_buf);
     feats[18] = rsrange;  // SC_FluctAnal_2_rsrangefit_50_1_logi_prop_r1
     feats[19] = dfa;      // SC_FluctAnal_2_dfa_50_1_2_logi_prop_r1
