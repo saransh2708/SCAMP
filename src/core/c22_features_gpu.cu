@@ -77,12 +77,6 @@ __device__ static double gpu_max(const double* y, int n) {
   return m;
 }
 
-__device__ static double gpu_norm(const double* y, int n) {
-  double s = 0.0;
-  for (int i = 0; i < n; i++) s += y[i] * y[i];
-  return sqrt(s);
-}
-
 // z-score normalize src → dst
 __device__ static void gpu_zscore(const double* src, int n, double* dst) {
   double m = gpu_mean(src, n);
@@ -167,13 +161,6 @@ __device__ static double gpu_autocov_cov_mean(const double* y, int n, int lag) {
   double s = 0.0;
   for (int i = 0; i < sz; i++) s += y[i] * y[i + lag];
   return s / sz;
-}
-
-// autocorr at lag: ac[k] = sum(y*y[+k]) / sum(y²)  — matches co_autocorrs
-__device__ static double gpu_autocorr_lag(const double* y, int n, int lag) {
-  double var = gpu_autocov_lag(y, n, 0);  // = sum(y²)
-  if (fabs(var) < 1e-30) return 0.0;
-  return gpu_autocov_lag(y, n, lag) / var;
 }
 
 // Pearson autocorrelation at lag: corr(y[0:n-lag], y[lag:n]).
