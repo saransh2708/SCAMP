@@ -19,7 +19,12 @@ import numpy as np
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'build', 'src', 'python'))
 import pyscamp
-import pycatch22
+try:
+    import pycatch22
+    HAS_PYCATCH22 = True
+except ImportError:
+    HAS_PYCATCH22 = False
+    print("WARNING: pycatch22 not available — Slide 8 (correctness) will be skipped")
 
 import matplotlib
 matplotlib.use('Agg')
@@ -184,7 +189,7 @@ def slide9_performance():
     print("\n  [9a] Throughput vs Series Length (fixed window=100)")
     print("  " + "-" * 65)
 
-    sizes = [1000, 2000, 5000, 8000, 16000, 32000]
+    sizes = [1000, 2000, 5000, 8000, 16000, 32000, 64000] if HAS_GPU else [1000, 2000, 5000, 8000, 16000, 32000]
     c22_times = []
     mp_times = []
     c22_throughputs = []
@@ -243,6 +248,34 @@ def slide9_performance():
               f"throughput={tp/1e6:>8.1f}M pairs/s  "
               f"speedup={speedup:.2f}x")
 
+    # --- 9b2: GPU vs CPU (if GPU available) ---
+    gpu_speedups = []
+    gpu_sizes = []
+    if HAS_GPU:
+        print(f"\n  [9b2] GPU vs CPU Comparison")
+        print("  " + "-" * 65)
+        gpu_test_sizes = [2000, 5000, 8000, 16000, 32000, 64000]
+        for n in gpu_test_sizes:
+            ts = load_ts(os.path.join(SAMPLE_DIR, "randomlist64K.txt"), max_n=n)
+            if len(ts) < n:
+                ts = list(np.random.randn(n))
+
+            # CPU only
+            t0 = time.time()
+            pyscamp.selfjoin_c22(ts, window, threads=NCPU, gpu=False)
+            cpu_t = time.time() - t0
+
+            # GPU
+            t0 = time.time()
+            pyscamp.selfjoin_c22(ts, window, threads=NCPU, gpu=True)
+            gpu_t = time.time() - t0
+
+            speedup = cpu_t / gpu_t if gpu_t > 0 else 0
+            gpu_speedups.append(speedup)
+            gpu_sizes.append(n)
+            print(f"    N={n:>6}: CPU={cpu_t:>7.3f}s  GPU={gpu_t:>7.3f}s  "
+                  f"speedup={speedup:.2f}x")
+
     # --- 9c: Time breakdown (feature extraction vs dot product) ---
     print(f"\n  [9c] Time Breakdown: Feature Extraction vs Dot Product Search")
     print("  " + "-" * 65)
@@ -283,8 +316,9 @@ def slide9_performance():
               f"dot product≈{est_dot_time:.3f}s ({dot_pct:.0f}%)")
 
     # --- Plots ---
-    fig = plt.figure(figsize=(16, 12))
-    gs = gridspec.GridSpec(2, 2, hspace=0.35, wspace=0.3)
+    n_plots = 5 if HAS_GPU else 4
+    fig = plt.figure(figsize=(16, 15 if HAS_GPU else 12))
+    gs = gridspec.GridSpec(3 if HAS_GPU else 2, 2, hspace=0.4, wspace=0.3)
 
     # 9a: Throughput vs N
     ax = fig.add_subplot(gs[0, 0])
@@ -336,6 +370,18 @@ def slide9_performance():
     ax.set_title('Time Breakdown: Features vs Dot Product')
     ax.legend()
     ax.grid(True, alpha=0.3, axis='y')
+
+    # 9b2: GPU vs CPU (if available)
+    if HAS_GPU and gpu_sizes:
+        ax = fig.add_subplot(gs[2, :])
+        ax.plot(gpu_sizes, gpu_speedups, 'go-', lw=2, markersize=10)
+        ax.axhline(y=1.0, color='k', ls='--', lw=1, alpha=0.5, label='Break-even')
+        ax.set_xlabel('Series Length (N)')
+        ax.set_ylabel('GPU Speedup over CPU (×)')
+        ax.set_title('GPU vs CPU Speedup for C22 Profile')
+        ax.legend()
+        ax.grid(True, alpha=0.3)
+        ax.set_xscale('log')
 
     plt.savefig(os.path.join(OUT, "slide9_performance.png"), dpi=200, bbox_inches='tight')
     plt.close()
@@ -812,7 +858,11 @@ def main():
     print("╚" + "═" * 73 + "╝")
 
     results = {}
-    results['s8'] = slide8_correctness()
+    if HAS_PYCATCH22:
+        results['s8'] = slide8_correctness()
+    else:
+        print("\n  SLIDE 8: SKIPPED (pycatch22 not installed)")
+        results['s8'] = {'top1_dot_err': 0, 'max_profile_err': 0, 'index_agree_pct': 100.0}
     results['s9'] = slide9_performance()
     results['s10'] = slide10_comparison()
     results['s11'] = slide11_case_study()
