@@ -290,30 +290,44 @@ def slide9_performance():
             ts = list(np.random.randn(n))
         n_subs = len(ts) - window + 1
 
-        # Estimate feature extraction time using pycatch22 (sequential)
-        # This gives an upper bound for our parallel C++ version
-        sample_count = min(100, n_subs)
-        t0 = time.time()
-        for i in range(sample_count):
-            pycatch22.catch22_all(ts[i:i + window])
-        feat_per_sub = (time.time() - t0) / sample_count
-        est_feat_time = feat_per_sub * n_subs / NCPU  # parallel estimate
+        if HAS_PYCATCH22:
+            # Estimate feature extraction time using pycatch22 (sequential)
+            sample_count = min(100, n_subs)
+            t0 = time.time()
+            for i in range(sample_count):
+                pycatch22.catch22_all(ts[i:i + window])
+            feat_per_sub = (time.time() - t0) / sample_count
+            est_feat_time = feat_per_sub * n_subs / NCPU  # parallel estimate
+        else:
+            # Estimate: feature extraction is ~O(N*W), dot product is ~O(N^2)
+            # Use ratio of N vs N^2 to split; rough heuristic
+            est_feat_time = None
 
         # Total C22 time
         t0 = time.time()
         pyscamp.selfjoin_c22(ts, window, threads=NCPU, gpu=HAS_GPU)
         total_t = time.time() - t0
 
-        est_dot_time = max(0, total_t - est_feat_time)
-        feat_pct = 100 * est_feat_time / total_t if total_t > 0 else 0
-        dot_pct = 100 * est_dot_time / total_t if total_t > 0 else 0
+        if est_feat_time is not None:
+            est_dot_time = max(0, total_t - est_feat_time)
+            feat_pct = 100 * est_feat_time / total_t if total_t > 0 else 0
+            dot_pct = 100 * est_dot_time / total_t if total_t > 0 else 0
+            feat_times.append(est_feat_time)
+        else:
+            est_dot_time = None
+            feat_pct = None
+            dot_pct = None
+            feat_times.append(0)
 
-        feat_times.append(est_feat_time)
         total_times_bd.append(total_t)
 
-        print(f"    N={n:>6}: total={total_t:.3f}s  "
-              f"features≈{est_feat_time:.3f}s ({feat_pct:.0f}%)  "
-              f"dot product≈{est_dot_time:.3f}s ({dot_pct:.0f}%)")
+        if feat_pct is not None:
+            print(f"    N={n:>6}: total={total_t:.3f}s  "
+                  f"features≈{est_feat_time:.3f}s ({feat_pct:.0f}%)  "
+                  f"dot product≈{est_dot_time:.3f}s ({dot_pct:.0f}%)")
+        else:
+            print(f"    N={n:>6}: total={total_t:.3f}s  "
+                  f"(breakdown unavailable without pycatch22)")
 
     # --- Plots ---
     n_plots = 5 if HAS_GPU else 4
