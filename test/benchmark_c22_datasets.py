@@ -19,10 +19,17 @@ import json
 import time
 import argparse
 import multiprocessing
+import csv
 from pathlib import Path
 
 import numpy as np
-import pandas as pd
+
+# Try to import pandas, but make it optional
+try:
+    import pandas as pd
+    HAS_PANDAS = True
+except ImportError:
+    HAS_PANDAS = False
 
 # Add the build directory to the Python path
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'build', 'src', 'python'))
@@ -41,26 +48,49 @@ MIN_SERIES_LENGTH = 200  # Skip datasets shorter than this
 def load_timeseries(csv_path):
     """Load time series from CSV file. Assumes 'ts' column or first numeric column."""
     try:
-        df = pd.read_csv(csv_path)
-        
-        # Try to find 'ts' column first
-        if 'ts' in df.columns:
-            ts = df['ts'].values
-        else:
-            # Find first numeric column
-            numeric_cols = df.select_dtypes(include=[np.number]).columns
-            if len(numeric_cols) > 0:
-                ts = df[numeric_cols[0]].values
+        if HAS_PANDAS:
+            # Use pandas if available (more robust)
+            df = pd.read_csv(csv_path)
+            
+            # Try to find 'ts' column first
+            if 'ts' in df.columns:
+                ts = df['ts'].values
             else:
-                raise ValueError(f"No numeric column found in {csv_path}")
-        
-        # Remove NaN values
-        ts = ts[~np.isnan(ts)]
+                # Find first numeric column
+                numeric_cols = df.select_dtypes(include=[np.number]).columns
+                if len(numeric_cols) > 0:
+                    ts = df[numeric_cols[0]].values
+                else:
+                    raise ValueError(f"No numeric column found in {csv_path}")
+            
+            # Remove NaN values and convert to list
+            ts = ts[~np.isnan(ts)].tolist()
+        else:
+            # Fallback to csv module (standard library)
+            ts = []
+            with open(csv_path, 'r') as f:
+                reader = csv.DictReader(f)
+                # Try to find 'ts' column first
+                if 'ts' in reader.fieldnames:
+                    col_name = 'ts'
+                else:
+                    # Use first column
+                    col_name = reader.fieldnames[0] if reader.fieldnames else None
+                    if col_name is None:
+                        raise ValueError(f"No columns found in {csv_path}")
+                
+                for row in reader:
+                    try:
+                        val = float(row[col_name])
+                        if not np.isnan(val):
+                            ts.append(val)
+                    except (ValueError, KeyError):
+                        continue  # Skip non-numeric or missing values
         
         if len(ts) < MIN_SERIES_LENGTH:
             return None, f"Series too short ({len(ts)} < {MIN_SERIES_LENGTH})"
         
-        return ts.tolist(), None
+        return ts, None
     except Exception as e:
         return None, str(e)
 
@@ -102,6 +132,10 @@ def benchmark_dataset(dataset_path, window_size, use_cpu=True, use_gpu=False, nu
         return None
     
     n = len(ts)
+    if n <= window_size:
+        print(f"  SKIPPED: Series length ({n}) <= window size ({window_size})")
+        return None
+    
     n_subseq = n - window_size + 1
     
     print(f"  Series length: {n}")
