@@ -155,7 +155,7 @@ def benchmark_dataset(dataset_path, window_size, use_cpu=True, use_gpu=False, nu
     # CPU benchmark
     if use_cpu:
         print(f"  Running CPU benchmark ({num_threads or 'auto'} threads)...", end=" ", flush=True)
-        t_cpu = bench(pyscamp.selfjoin_c22, ts, window_size, threads=num_threads, gpu=False)
+        t_cpu = bench(pyscamp.selfjoin_c22, ts, window_size, threads=num_threads or 0, gpu=False)
         if t_cpu is not None:
             throughput_cpu = compute_throughput(n_subseq, t_cpu)
             result['cpu'] = {
@@ -171,7 +171,7 @@ def benchmark_dataset(dataset_path, window_size, use_cpu=True, use_gpu=False, nu
     # GPU benchmark
     if use_gpu and pyscamp.gpu_supported():
         print(f"  Running GPU benchmark...", end=" ", flush=True)
-        t_gpu = bench(pyscamp.selfjoin_c22, ts, window_size, threads=num_threads, gpu=True)
+        t_gpu = bench(pyscamp.selfjoin_c22, ts, window_size, threads=num_threads or 0, gpu=True)
         if t_gpu is not None:
             throughput_gpu = compute_throughput(n_subseq, t_gpu)
             result['gpu'] = {
