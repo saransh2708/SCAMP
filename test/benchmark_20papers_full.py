@@ -251,7 +251,7 @@ def benchmark_one_dataset(ts, labels, dataset_name, window, num_threads,
     if use_gpu:
         print(f"    MP  GPU...", end=" ", flush=True)
         t_mp_gpu, (mp_profile_gpu, mp_index_gpu) = bench(
-            pyscamp.selfjoin, ts, window, threads=num_threads,
+            pyscamp.selfjoin, ts, window, gpus=[0], threads=num_threads,
             repeat=repeat)
         if t_mp_gpu is not None:
             result['mp_gpu'] = {
@@ -503,7 +503,7 @@ def benchmark_scaling_by_size(datasets_by_length, window, num_threads, use_gpu, 
         if use_gpu:
             t_c22_g, _ = bench(pyscamp.selfjoin_c22, ts, window,
                                threads=num_threads, gpu=True, repeat=repeat)
-            t_mp_g, _ = bench(pyscamp.selfjoin, ts, window,
+            t_mp_g, _ = bench(pyscamp.selfjoin, ts, window, gpus=[0],
                               threads=num_threads, repeat=repeat)
             scaling['c22_gpu_times'].append(t_c22_g if t_c22_g else None)
             scaling['c22_gpu_throughputs'].append(
