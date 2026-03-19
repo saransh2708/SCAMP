@@ -37,6 +37,7 @@ list(FILTER C22_C_SOURCES EXCLUDE REGEX ".*catch22_wrap\\.c$")
 # Create C22 features library (standalone — no dependency on SCAMP common)
 add_library(c22_features
   ${CMAKE_CURRENT_SOURCE_DIR}/c22_features.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/c22_autocorr_opt.c
   ${C22_C_SOURCES}
 )
 target_include_directories(c22_features PUBLIC
@@ -51,6 +52,11 @@ set_source_files_properties(${C22_C_SOURCES} PROPERTIES
 # Apply same optimization flags to pycatch22 C files for SIMD auto-vectorization (Level 4)
 set_source_files_properties(${C22_C_SOURCES} PROPERTIES
   COMPILE_FLAGS "${SCAMP_OPTIMIZED_BUILD_FLAGS}"
+)
+# c22_autocorr_opt.c uses pycatch22 headers — same C standard
+set_source_files_properties(${CMAKE_CURRENT_SOURCE_DIR}/c22_autocorr_opt.c PROPERTIES
+  C_STANDARD 99
+  C_STANDARD_REQUIRED ON
 )
 
 # C22 Profile computation engine

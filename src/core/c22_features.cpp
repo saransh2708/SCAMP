@@ -62,6 +62,10 @@ extern double SP_Summaries_welch_rect_centroid(const double y[],
 extern void zscore_norm2(const double a[], const int size, double b[]);
 }
 
+// Cached autocorrelation functions — compute autocorrelation once, reuse for
+// features 2, 3, 8, 10, 12 (avoids 5 redundant FFT-based autocorr calls).
+#include "c22_autocorr_opt.h"
+
 namespace SCAMP {
 
 // ============================================================================
@@ -69,16 +73,19 @@ namespace SCAMP {
 // Used by Level 3 parallelism to dispatch individual features to threads.
 // Feature ordering must exactly match compute_c22_features_internal().
 // ============================================================================
-static double compute_single_feature(int f, const double* z, int n) {
+static double compute_single_feature(int f, const double* z, int n,
+                                     const double* autocorrs = nullptr) {
   switch (f) {
     case 0:
       return DN_HistogramMode_5(z, n);
     case 1:
       return DN_HistogramMode_10(z, n);
     case 2:
-      return CO_f1ecac(z, n);
+      return autocorrs ? c22_CO_f1ecac_cached(autocorrs, n) : CO_f1ecac(z, n);
     case 3:
-      return static_cast<double>(CO_FirstMin_ac(z, n));
+      return autocorrs
+                 ? static_cast<double>(c22_CO_FirstMin_ac_cached(autocorrs, n))
+                 : static_cast<double>(CO_FirstMin_ac(z, n));
     case 4:
       return CO_HistogramAMI_even_2_5(z, n);
     case 5:
@@ -88,15 +95,21 @@ static double compute_single_feature(int f, const double* z, int n) {
     case 7:
       return SB_BinaryStats_mean_longstretch1(z, n);
     case 8:
-      return SB_TransitionMatrix_3ac_sumdiagcov(z, n);
+      return autocorrs ? c22_SB_TransitionMatrix_3ac_sumdiagcov_cached(
+                             z, n, autocorrs)
+                       : SB_TransitionMatrix_3ac_sumdiagcov(z, n);
     case 9:
       return static_cast<double>(PD_PeriodicityWang_th0_01(z, n));
     case 10:
-      return CO_Embed2_Dist_tau_d_expfit_meandiff(z, n);
+      return autocorrs ? c22_CO_Embed2_Dist_tau_d_expfit_meandiff_cached(
+                             z, n, autocorrs)
+                       : CO_Embed2_Dist_tau_d_expfit_meandiff(z, n);
     case 11:
       return IN_AutoMutualInfoStats_40_gaussian_fmmi(z, n);
     case 12:
-      return FC_LocalSimple_mean1_tauresrat(z, n);
+      return autocorrs
+                 ? c22_FC_LocalSimple_mean1_tauresrat_cached(z, n, autocorrs)
+                 : FC_LocalSimple_mean1_tauresrat(z, n);
     case 13:
       return DN_OutlierInclude_p_001_mdrmd(z, n);
     case 14:
@@ -128,21 +141,21 @@ static double compute_single_feature(int f, const double* z, int n) {
 // threads: features 13,14 (DN_OutlierInclude) and 18,19 (SC_FluctAnal) land
 // on different threads, preventing one thread from monopolising runtime.
 //
-// Thread safety: each thread writes to disjoint indices of out.features[],
-// so no synchronisation is needed.
-//
-// When nthreads == 1 this degenerates to a simple sequential loop with no
-// thread-spawn overhead.
 // ============================================================================
 static void compute_c22_features_l3(const double* z, int n,
                                     C22FeatureVector& out, int nthreads) {
   const int NF = C22FeatureVector::NUM_FEATURES;
 
+  // Pre-compute autocorrelation once (FFT-based, O(W log W)) and share it
+  // across features 2, 3, 8, 10, 12 — avoids 5 redundant FFT calls.
+  double* autocorrs = c22_co_autocorrs(z, n);
+
   if (nthreads <= 1) {
     for (int f = 0; f < NF; ++f) {
-      double v = compute_single_feature(f, z, n);
+      double v = compute_single_feature(f, z, n, autocorrs);
       out.features[f] = std::isfinite(v) ? v : 0.0;
     }
+    free(autocorrs);
     return;
   }
 
@@ -150,20 +163,21 @@ static void compute_c22_features_l3(const double* z, int n,
   workers.reserve(nthreads - 1);
 
   for (int t = 1; t < nthreads; ++t) {
-    workers.emplace_back([t, nthreads, z, n, &out]() {
+    workers.emplace_back([t, nthreads, z, n, autocorrs, &out]() {
       for (int f = t; f < C22FeatureVector::NUM_FEATURES; f += nthreads) {
-        double v = compute_single_feature(f, z, n);
+        double v = compute_single_feature(f, z, n, autocorrs);
         out.features[f] = std::isfinite(v) ? v : 0.0;
       }
     });
   }
 
   for (int f = 0; f < NF; f += nthreads) {
-    double v = compute_single_feature(f, z, n);
+    double v = compute_single_feature(f, z, n, autocorrs);
     out.features[f] = std::isfinite(v) ? v : 0.0;
   }
 
   for (auto& w : workers) w.join();
+  free(autocorrs);
 }
 
 C22FeatureVector compute_c22_features_internal(const double* data, int size) {
