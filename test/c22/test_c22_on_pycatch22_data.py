@@ -11,11 +11,11 @@ import os
 import numpy as np
 
 # Add build directory to path
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'build', 'src', 'python'))
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', '..', 'build', 'src', 'python'))
 import pyscamp
 
 BENCHMARK_DIR = os.path.join(
-    os.path.dirname(__file__), '..', 'pycatch22', 'tests', 'benchmarks', 'inputs'
+    os.path.dirname(__file__), '..', '..', 'pycatch22', 'tests', 'benchmarks', 'inputs'
 )
 
 def load_ts(filename):

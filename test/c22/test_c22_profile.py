@@ -6,7 +6,7 @@ import math
 import numpy as np
 
 # Add the build directory to the Python path
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'build', 'src', 'python'))
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', '..', 'build', 'src', 'python'))
 
 import pyscamp
 

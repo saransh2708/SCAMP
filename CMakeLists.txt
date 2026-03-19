@@ -315,7 +315,7 @@ endif()
 target_link_libraries(SCAMP gflags common scamp_interface scamp_utils)
 
 # C22 Feature Test
-add_executable(test_c22_features ${CMAKE_CURRENT_SOURCE_DIR}/test/test_c22_features.cpp)
+add_executable(test_c22_features ${CMAKE_CURRENT_SOURCE_DIR}/test/c22/test_c22_features.cpp)
 target_link_libraries(test_c22_features c22_features)
 
 # clang-format target

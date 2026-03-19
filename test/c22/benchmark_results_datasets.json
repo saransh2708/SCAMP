@@ -1,0 +1,408 @@
+{
+    "config": {
+        "window_size": 100,
+        "cpu_enabled": true,
+        "gpu_enabled": true,
+        "cpu_threads": 16,
+        "repeat": 3,
+        "min_series_length": 200
+    },
+    "datasets": [
+        {
+            "dataset": "051_UCR_Anomaly_DISTORTEDTkeepSecondMARS_3500_9330_9340",
+            "dataset_path": "/home/sgupt132/C22/test/../20Papers /051_UCR_Anomaly_DISTORTEDTkeepSecondMARS_3500_9330_9340.csv",
+            "series_length": 7888,
+            "window_size": 100,
+            "n_subsequences": 7789,
+            "cpu": {
+                "time_s": 0.30450119636952877,
+                "throughput_mpairs_s": 199.23902343679282,
+                "threads": 16
+            },
+            "gpu": {
+                "time_s": 0.08252053987234831,
+                "throughput_mpairs_s": 735.1929724871968,
+                "threads": 16
+            },
+            "speedup": 3.6900048986660066
+        },
+        {
+            "dataset": "140_UCR_Anomaly_InternalBleeding4_1000_4675_5033",
+            "dataset_path": "/home/sgupt132/C22/test/../20Papers /140_UCR_Anomaly_InternalBleeding4_1000_4675_5033.csv",
+            "series_length": 6321,
+            "window_size": 100,
+            "n_subsequences": 6222,
+            "cpu": {
+                "time_s": 0.23419058229774237,
+                "throughput_mpairs_s": 165.30674982814284,
+                "threads": 16
+            },
+            "gpu": {
+                "time_s": 0.06925798114389181,
+                "throughput_mpairs_s": 558.972169858207,
+                "threads": 16
+            },
+            "speedup": 3.381423749721829
+        },
+        {
+            "dataset": "144_UCR_Anomaly_InternalBleeding9_4200_6599_6681",
+            "dataset_path": "/home/sgupt132/C22/test/../20Papers /144_UCR_Anomaly_InternalBleeding9_4200_6599_6681.csv",
+            "series_length": 3301,
+            "window_size": 100,
+            "n_subsequences": 3202,
+            "cpu": {
+                "time_s": 0.11425580363720655,
+                "throughput_mpairs_s": 89.73552041658608,
+                "threads": 16
+            },
+            "gpu": {
+                "time_s": 0.03006601519882679,
+                "throughput_mpairs_s": 341.0097391422883,
+                "threads": 16
+            },
+            "speedup": 3.800164500737196
+        },
+        {
+            "dataset": "162_UCR_Anomaly_WalkingAceleration5_2700_5920_5979",
+            "dataset_path": "/home/sgupt132/C22/test/../20Papers /162_UCR_Anomaly_WalkingAceleration5_2700_5920_5979.csv",
+            "series_length": 3984,
+            "window_size": 100,
+            "n_subsequences": 3885,
+            "cpu": {
+                "time_s": 0.1472683371976018,
+                "throughput_mpairs_s": 102.48791618899183,
+                "threads": 16
+            },
+            "gpu": {
+                "time_s": 0.03340053837746382,
+                "throughput_mpairs_s": 451.88568008783295,
+                "threads": 16
+            },
+            "speedup": 4.409160580985349
+        },
+        {
+            "dataset": "AIOps",
+            "dataset_path": "/home/sgupt132/C22/test/../20Papers /AIOps.csv",
+            "series_length": 27000,
+            "window_size": 100,
+            "n_subsequences": 26901,
+            "cpu": {
+                "time_s": 1.4987117480486631,
+                "throughput_mpairs_s": 482.85722851123114,
+                "threads": 16
+            },
+            "gpu": {
+                "time_s": 0.5850029280409217,
+                "throughput_mpairs_s": 1237.025946901549,
+                "threads": 16
+            },
+            "speedup": 2.561887601259709
+        },
+        {
+            "dataset": "AIOps_2",
+            "dataset_path": "/home/sgupt132/C22/test/../20Papers /AIOps_2.csv",
+            "series_length": 3000,
+            "window_size": 100,
+            "n_subsequences": 2901,
+            "cpu": {
+                "time_s": 0.11106567922979593,
+                "throughput_mpairs_s": 75.77319166785655,
+                "threads": 16
+            },
+            "gpu": {
+                "time_s": 0.03619501367211342,
+                "throughput_mpairs_s": 232.51271780797765,
+                "threads": 16
+            },
+            "speedup": 3.0685353578238015
+        },
+        {
+            "dataset": "Damp ECG 60 Seconds",
+            "dataset_path": "/home/sgupt132/C22/test/../20Papers /Damp ECG 60 Seconds.csv",
+            "series_length": 15000,
+            "window_size": 100,
+            "n_subsequences": 14901,
+            "cpu": {
+                "time_s": 0.6492447834461927,
+                "throughput_mpairs_s": 341.99705051369415,
+                "threads": 16
+            },
+            "gpu": {
+                "time_s": 0.2679999182000756,
+                "throughput_mpairs_s": 828.5069730291333,
+                "threads": 16
+            },
+            "speedup": 2.422555901533889
+        },
+        {
+            "dataset": "HAI_test1_36",
+            "dataset_path": "/home/sgupt132/C22/test/../20Papers /HAI_test1_36.csv",
+            "series_length": 20000,
+            "window_size": 100,
+            "n_subsequences": 19901,
+            "cpu": {
+                "time_s": 0.9753906447440386,
+                "throughput_mpairs_s": 406.0422387011218,
+                "threads": 16
+            },
+            "gpu": {
+                "time_s": 0.5576752489432693,
+                "throughput_mpairs_s": 710.1799869197513,
+                "threads": 16
+            },
+            "speedup": 1.7490298280088497
+        },
+        {
+            "dataset": "HAI_test2_57",
+            "dataset_path": "/home/sgupt132/C22/test/../20Papers /HAI_test2_57.csv",
+            "series_length": 17000,
+            "window_size": 100,
+            "n_subsequences": 16901,
+            "cpu": {
+                "time_s": 0.7599428771063685,
+                "throughput_mpairs_s": 375.8753580106505,
+                "threads": 16
+            },
+            "gpu": {
+                "time_s": 0.8645933736115694,
+                "throughput_mpairs_s": 330.3793548715416,
+                "threads": 16
+            },
+            "speedup": 0.8789598674946397
+        },
+        {
+            "dataset": "MGAB",
+            "dataset_path": "/home/sgupt132/C22/test/../20Papers /MGAB.csv",
+            "series_length": 6100,
+            "window_size": 100,
+            "n_subsequences": 6001,
+            "cpu": {
+                "time_s": 0.23310994543135166,
+                "throughput_mpairs_s": 154.48504753138104,
+                "threads": 16
+            },
+            "gpu": {
+                "time_s": 0.054180482402443886,
+                "throughput_mpairs_s": 664.6674116429726,
+                "threads": 16
+            },
+            "speedup": 4.302470836266251
+        },
+        {
+            "dataset": "MSCRED",
+            "dataset_path": "/home/sgupt132/C22/test/../20Papers /MSCRED.csv",
+            "series_length": 5000,
+            "window_size": 100,
+            "n_subsequences": 4901,
+            "cpu": {
+                "time_s": 0.19063090812414885,
+                "throughput_mpairs_s": 126.0016082195708,
+                "threads": 16
+            },
+            "gpu": {
+                "time_s": 0.04785183444619179,
+                "throughput_mpairs_s": 501.9619681876497,
+                "threads": 16
+            },
+            "speedup": 3.98377429685603
+        },
+        {
+            "dataset": "NewyorkTaxi",
+            "dataset_path": "/home/sgupt132/C22/test/../20Papers /NewyorkTaxi.csv",
+            "series_length": 5000,
+            "window_size": 100,
+            "n_subsequences": 4901,
+            "cpu": {
+                "time_s": 0.18462115433067083,
+                "throughput_mpairs_s": 130.10318935054795,
+                "threads": 16
+            },
+            "gpu": {
+                "time_s": 0.04288448952138424,
+                "throughput_mpairs_s": 560.1046268260367,
+                "threads": 16
+            },
+            "speedup": 4.305079910968976
+        },
+        {
+            "dataset": "PV_System",
+            "dataset_path": "/home/sgupt132/C22/test/../20Papers /PV_System.csv",
+            "series_length": 1510,
+            "window_size": 100,
+            "n_subsequences": 1411,
+            "cpu": {
+                "time_s": 0.0492591243237257,
+                "throughput_mpairs_s": 40.41730394791187,
+                "threads": 16
+            },
+            "gpu": {
+                "time_s": 0.28050940297544,
+                "throughput_mpairs_s": 7.097519651326323,
+                "threads": 16
+            },
+            "speedup": 0.17560596472425055
+        },
+        {
+            "dataset": "cpu",
+            "dataset_path": "/home/sgupt132/C22/test/../20Papers /cpu.csv",
+            "series_length": 600,
+            "window_size": 100,
+            "n_subsequences": 501,
+            "cpu": {
+                "time_s": 0.018380717374384403,
+                "throughput_mpairs_s": 13.65566941091201,
+                "threads": 16
+            },
+            "gpu": {
+                "time_s": 0.021512367762625217,
+                "throughput_mpairs_s": 11.667753302176237,
+                "threads": 16
+            },
+            "speedup": 0.8544255833297149
+        },
+        {
+            "dataset": "ecg",
+            "dataset_path": "/home/sgupt132/C22/test/../20Papers /ecg.csv",
+            "series_length": 45000,
+            "window_size": 100,
+            "n_subsequences": 44901,
+            "cpu": {
+                "time_s": 3.8530262410640717,
+                "throughput_mpairs_s": 523.250991522763,
+                "threads": 16
+            },
+            "gpu": {
+                "time_s": 1.5581555608659983,
+                "throughput_mpairs_s": 1293.9014894504394,
+                "threads": 16
+            },
+            "speedup": 2.4728123031070277
+        },
+        {
+            "dataset": "seismic",
+            "dataset_path": "/home/sgupt132/C22/test/../20Papers /seismic.csv",
+            "series_length": 1000,
+            "window_size": 100,
+            "n_subsequences": 901,
+            "cpu": {
+                "time_s": 0.03373249061405659,
+                "throughput_mpairs_s": 24.06584824370236,
+                "threads": 16
+            },
+            "gpu": {
+                "time_s": 0.02280429471284151,
+                "throughput_mpairs_s": 35.5986015012716,
+                "threads": 16
+            },
+            "speedup": 1.4792165703358153
+        },
+        {
+            "dataset": "telemanom",
+            "dataset_path": "/home/sgupt132/C22/test/../20Papers /telemanom.csv",
+            "series_length": 7914,
+            "window_size": 100,
+            "n_subsequences": 7815,
+            "cpu": {
+                "time_s": 0.3034946136176586,
+                "throughput_mpairs_s": 201.23660275875963,
+                "threads": 16
+            },
+            "gpu": {
+                "time_s": 0.46579385083168745,
+                "throughput_mpairs_s": 131.1185729286686,
+                "threads": 16
+            },
+            "speedup": 0.6515642339969943
+        },
+        {
+            "dataset": "twitter_ieee",
+            "dataset_path": "/home/sgupt132/C22/test/../20Papers /twitter_ieee.csv",
+            "series_length": 12400,
+            "window_size": 100,
+            "n_subsequences": 12301,
+            "cpu": {
+                "time_s": 0.5466735530644655,
+                "throughput_mpairs_s": 276.7915150674145,
+                "threads": 16
+            },
+            "gpu": {
+                "time_s": 0.1530339503660798,
+                "throughput_mpairs_s": 988.7649154846563,
+                "threads": 16
+            },
+            "speedup": 3.572237086978031
+        },
+        {
+            "dataset": "water_quality ts7",
+            "dataset_path": "/home/sgupt132/C22/test/../20Papers /water_quality ts7.csv",
+            "series_length": 11000,
+            "window_size": 100,
+            "n_subsequences": 10901,
+            "cpu": {
+                "time_s": 0.4469190323725343,
+                "throughput_mpairs_s": 265.89111761287995,
+                "threads": 16
+            },
+            "gpu": {
+                "time_s": 0.5773846488445997,
+                "throughput_mpairs_s": 205.81046142773877,
+                "threads": 16
+            },
+            "speedup": 0.7740403789170023
+        },
+        {
+            "dataset": "yahoo_real_57",
+            "dataset_path": "/home/sgupt132/C22/test/../20Papers /yahoo_real_57.csv",
+            "series_length": 1441,
+            "window_size": 100,
+            "n_subsequences": 1342,
+            "cpu": {
+                "time_s": 0.04812383186072111,
+                "throughput_mpairs_s": 37.42353695383836,
+                "threads": 16
+            },
+            "gpu": {
+                "time_s": 0.02233925648033619,
+                "throughput_mpairs_s": 80.61879774670535,
+                "threads": 16
+            },
+            "speedup": 2.1542271070248655
+        },
+        {
+            "dataset": "yahoo_real_61",
+            "dataset_path": "/home/sgupt132/C22/test/../20Papers /yahoo_real_61.csv",
+            "series_length": 1400,
+            "window_size": 100,
+            "n_subsequences": 1301,
+            "cpu": {
+                "time_s": 0.046798110008239746,
+                "throughput_mpairs_s": 36.168148664593154,
+                "threads": 16
+            },
+            "gpu": {
+                "time_s": 0.03373965434730053,
+                "throughput_mpairs_s": 50.166518677907646,
+                "threads": 16
+            },
+            "speedup": 1.387035845907651
+        },
+        {
+            "dataset": "yahoo_real_7",
+            "dataset_path": "/home/sgupt132/C22/test/../20Papers /yahoo_real_7.csv",
+            "series_length": 1423,
+            "window_size": 100,
+            "n_subsequences": 1324,
+            "cpu": {
+                "time_s": 0.06300123315304518,
+                "throughput_mpairs_s": 27.824471240770777,
+                "threads": 16
+            },
+            "gpu": {
+                "time_s": 0.04041553568094969,
+                "throughput_mpairs_s": 43.373815797925566,
+                "threads": 16
+            },
+            "speedup": 1.5588370187739837
+        }
+    ]
+}

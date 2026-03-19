@@ -13,7 +13,7 @@ Strategy
 5. Assert GPU == CPU == brute-force truth.
 
 Run from repo root:
-  PYTHONPATH=build/src/python python3 test/test_c22_gpu_correctness.py
+  PYTHONPATH=build/src/python python3 test/c22/test_c22_gpu_correctness.py
 """
 
 import sys

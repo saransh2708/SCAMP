@@ -7,8 +7,8 @@ at sizes from 8K to 2M, matching Table 6 of the SCAMP camera-ready paper.
 Outputs JSON for local plotting via plot_20papers_results.py.
 
 Usage:
-  PYTHONPATH=build/src/python python3 test/benchmark_sampleinput.py --gpu
-  PYTHONPATH=build/src/python python3 test/benchmark_sampleinput.py --cpu-only
+  PYTHONPATH=build/src/python python3 test/c22/benchmark_sampleinput.py --gpu
+  PYTHONPATH=build/src/python python3 test/c22/benchmark_sampleinput.py --cpu-only
 """
 
 import sys
@@ -21,7 +21,7 @@ from pathlib import Path
 
 import numpy as np
 
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'build', 'src', 'python'))
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', '..', 'build', 'src', 'python'))
 
 try:
     import pyscamp
@@ -30,7 +30,7 @@ except ImportError:
     sys.exit(1)
 
 HAS_GPU = pyscamp.gpu_supported()
-SAMPLE_DIR = Path(os.path.dirname(os.path.abspath(__file__))) / "SampleInput"
+SAMPLE_DIR = Path(os.path.dirname(os.path.abspath(__file__))) / ".." / "SampleInput"
 
 DEFAULT_WINDOW = 100
 REPEAT = 3

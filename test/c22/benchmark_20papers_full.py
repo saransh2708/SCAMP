@@ -15,16 +15,16 @@ Benchmarks performed:
   6. Anomaly detection: precision of top-k discords against ground-truth labels
 
 Usage (on GPU machine):
-  PYTHONPATH=build/src/python python3 test/benchmark_20papers_full.py [options]
+  PYTHONPATH=build/src/python python3 test/c22/benchmark_20papers_full.py [options]
 
   # Full run (CPU + GPU, all benchmarks)
-  PYTHONPATH=build/src/python python3 test/benchmark_20papers_full.py --gpu
+  PYTHONPATH=build/src/python python3 test/c22/benchmark_20papers_full.py --gpu
 
   # CPU-only quick run
-  PYTHONPATH=build/src/python python3 test/benchmark_20papers_full.py --cpu-only
+  PYTHONPATH=build/src/python python3 test/c22/benchmark_20papers_full.py --cpu-only
 
   # Custom settings
-  PYTHONPATH=build/src/python python3 test/benchmark_20papers_full.py \\
+  PYTHONPATH=build/src/python python3 test/c22/benchmark_20papers_full.py \\
       --gpu --window-size 50 --threads 16 --repeat 5
 
 Output:
@@ -526,18 +526,18 @@ def main():
         epilog="""
 Examples:
   # CPU-only run
-  PYTHONPATH=build/src/python python3 test/benchmark_20papers_full.py
+  PYTHONPATH=build/src/python python3 test/c22/benchmark_20papers_full.py
 
   # With GPU
-  PYTHONPATH=build/src/python python3 test/benchmark_20papers_full.py --gpu
+  PYTHONPATH=build/src/python python3 test/c22/benchmark_20papers_full.py --gpu
 
   # Custom settings
-  PYTHONPATH=build/src/python python3 test/benchmark_20papers_full.py \\
+  PYTHONPATH=build/src/python python3 test/c22/benchmark_20papers_full.py \\
       --gpu --window-size 50 --threads 16 --repeat 5
         """)
 
     parser.add_argument('--datasets-dir', type=str,
-                        default=os.path.join(os.path.dirname(__file__), '..', '20Papers '),
+                        default=os.path.join(os.path.dirname(__file__), '..', '..', '20Papers '),
                         help='Directory containing CSV datasets (default: ../20Papers /)')
     parser.add_argument('--window-size', '-m', type=int, default=DEFAULT_WINDOW,
                         help=f'Window size (default: {DEFAULT_WINDOW})')

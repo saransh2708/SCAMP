@@ -77,7 +77,6 @@ __device__ static double gpu_max(const double* y, int n) {
   return m;
 }
 
-// z-score normalize src → dst
 __device__ static void gpu_zscore(const double* src, int n, double* dst) {
   double m = gpu_mean(src, n);
   double sd = sqrt(gpu_var_given_mean(src, n, m));
@@ -85,7 +84,6 @@ __device__ static void gpu_zscore(const double* src, int n, double* dst) {
   for (int i = 0; i < n; i++) dst[i] = (src[i] - m) / sd;
 }
 
-// In-place insertion sort (ascending)
 __device__ static void gpu_sort(double* y, int n) {
   for (int i = 1; i < n; i++) {
     double key = y[i];
@@ -98,16 +96,13 @@ __device__ static void gpu_sort(double* y, int n) {
   }
 }
 
-// Median of a pre-sorted array copy (sorts in-place)
-__device__ static double gpu_median(const double* y, int n,
-                                    double* tmp) {  // tmp must be n doubles
+__device__ static double gpu_median(const double* y, int n, double* tmp) {
   for (int i = 0; i < n; i++) tmp[i] = y[i];
   gpu_sort(tmp, n);
   if (n & 1) return tmp[n / 2];
   return (tmp[n / 2 - 1] + tmp[n / 2]) * 0.5;
 }
 
-// quantile q ∈ [0,1] — sorts a copy into tmp
 __device__ static double gpu_quantile(const double* y, int n, double q,
                                       double* tmp) {
   for (int i = 0; i < n; i++) tmp[i] = y[i];
@@ -122,7 +117,6 @@ __device__ static double gpu_quantile(const double* y, int n, double q,
   return tmp[left] + (qidx - left) * (tmp[right] - tmp[left]);
 }
 
-// Simple OLS: y = m*x + b (x = 0,1,...,n-1)
 __device__ static void gpu_linreg(const double* x, const double* y, int n,
                                   double* m_out, double* b_out) {
   double sx = 0, sx2 = 0, sxy = 0, sy = 0;
@@ -142,19 +136,13 @@ __device__ static void gpu_linreg(const double* x, const double* y, int n,
   *b_out = (sy * sx2 - sx * sxy) / denom;
 }
 
-// Raw autocov sum at lag: sum(y[i]*y[i+lag]) — NOT divided by (n-lag).
-// Dividing by the lag-0 value (sum of squares) reproduces pycatch22's
-// co_autocorrs normalisation: ac[k] = sum(y*y[+k]) / sum(y²).
 __device__ static double gpu_autocov_lag(const double* y, int n, int lag) {
   if (lag >= n) return 0.0;
   double s = 0.0;
   for (int i = 0; i < n - lag; i++) s += y[i] * y[i + lag];
-  return s;  // raw sum — caller divides by lag-0 for normalisation
+  return s;
 }
 
-// Autocovariance at lag: matches pycatch22's autocov_lag = cov_mean(x, &x[lag], size-lag).
-// cov_mean(x, y, n) = sum(x[i]*y[i]) / n  — NO mean subtraction, divides by n.
-// Used only by PD_PeriodicityWang.
 __device__ static double gpu_autocov_cov_mean(const double* y, int n, int lag) {
   if (lag >= n) return 0.0;
   int sz = n - lag;
@@ -163,10 +151,6 @@ __device__ static double gpu_autocov_cov_mean(const double* y, int n, int lag) {
   return s / sz;
 }
 
-// Pearson autocorrelation at lag: corr(y[0:n-lag], y[lag:n]).
-// Matches pycatch22's autocorr_lag() in stats.c, which calls
-// corr(x, &x[lag], size-lag) — a full Pearson with per-slice mean+std.
-// Used ONLY by IN_AutoMutualInfoStats_40_gaussian_fmmi.
 __device__ static double gpu_autocorr_pearson_lag(const double* y, int n,
                                                   int lag) {
   int sz = n - lag;
@@ -191,8 +175,6 @@ __device__ static double gpu_autocorr_pearson_lag(const double* y, int n,
   return (denom < 1e-30) ? 0.0 : nom / denom;
 }
 
-// Compute autocorrelations for lags 0..maxlag into out[] (size maxlag+1)
-// Formula: out[k] = sum(y[i]*y[i+k]) / sum(y[i]²)  — matches pycatch22
 __device__ static void gpu_co_autocorrs(const double* y, int n, double* out,
                                         int maxlag) {
   double var = gpu_autocov_lag(y, n, 0);  // = sum(y²)
@@ -201,7 +183,6 @@ __device__ static void gpu_co_autocorrs(const double* y, int n, double* out,
     out[lag] = gpu_autocov_lag(y, n, lag) * inv_var;
 }
 
-// First zero-crossing of autocorrelation (≥ 1)
 __device__ static int gpu_co_firstzero(const double* y, int n, const double* ac,
                                        int maxlag) {
   for (int i = 0; i < maxlag - 1; i++)
@@ -209,11 +190,7 @@ __device__ static int gpu_co_firstzero(const double* y, int n, const double* ac,
   return maxlag;
 }
 
-// ============================================================================
-// ── Iterative FFT (power-of-2 size, for SP_Summaries only) ──────────────────
-// ============================================================================
-// In-place Cooley-Tukey, operates on separate real/imag arrays.
-
+// In-place Cooley-Tukey FFT (power-of-2 size)
 __device__ static int gpu_nextpow2(int n) {
   int p = 1;
   while (p < n) p <<= 1;
@@ -221,7 +198,6 @@ __device__ static int gpu_nextpow2(int n) {
 }
 
 __device__ static void gpu_fft(double* re, double* im, int n) {
-  // bit-reversal
   for (int i = 1, j = 0; i < n; i++) {
     int bit = n >> 1;
     for (; j & bit; bit >>= 1) j ^= bit;
@@ -236,7 +212,6 @@ __device__ static void gpu_fft(double* re, double* im, int n) {
       im[j] = t;
     }
   }
-  // butterfly
   const double PI = 3.14159265358979323846;
   for (int len = 2; len <= n; len <<= 1) {
     double ang = -2.0 * PI / len;
@@ -260,20 +235,15 @@ __device__ static void gpu_fft(double* re, double* im, int n) {
   }
 }
 
-// ============================================================================
-// ── Coarse-graining (for SB_TransitionMatrix, SB_MotifThree) ────────────────
-// ============================================================================
-// Assigns each element a quantile label 1..num_groups using a sorted copy tmp.
 __device__ static void gpu_coarsegrain_quantile(const double* y, int n,
                                                 int num_groups, int* labels,
                                                 double* tmp) {
-  // compute quantile thresholds: 0, 1/g, 2/g, ..., 1
-  double th[4];  // num_groups+1 ≤ 4
+  double th[4];
   for (int k = 0; k <= num_groups; k++) {
     double q = (double)k / num_groups;
     th[k] = gpu_quantile(y, n, q, tmp);
   }
-  th[0] -= 1.0;  // open lower bound (match pycatch22 behaviour)
+  th[0] -= 1.0;
   for (int i = 0; i < n; i++) {
     labels[i] = 0;
     for (int k = 0; k < num_groups; k++) {
@@ -285,9 +255,6 @@ __device__ static void gpu_coarsegrain_quantile(const double* y, int n,
   }
 }
 
-// ============================================================================
-// ── Feature 1: DN_HistogramMode_5 ───────────────────────────────────────────
-// ============================================================================
 __device__ static double gpu_DN_HistogramMode(const double* z, int W,
                                               int nBins) {
   double mn = gpu_min(z, W), mx = gpu_max(z, W);
@@ -318,9 +285,6 @@ __device__ static double gpu_DN_HistogramMode(const double* z, int W,
   return out / numMaxs;
 }
 
-// ============================================================================
-// ── Feature 3: CO_f1ecac  (first 1/e crossing of AC) ────────────────────────
-// ============================================================================
 __device__ static double gpu_CO_f1ecac(const double* z, int W,
                                        const double* ac) {
   double thresh = 1.0 / exp(1.0);
@@ -334,18 +298,12 @@ __device__ static double gpu_CO_f1ecac(const double* z, int W,
   return (double)W;
 }
 
-// ============================================================================
-// ── Feature 4: CO_FirstMin_ac ────────────────────────────────────────────────
-// ============================================================================
 __device__ static int gpu_CO_FirstMin_ac(const double* ac, int W) {
   for (int i = 1; i < W - 1; i++)
     if (ac[i] < ac[i - 1] && ac[i] < ac[i + 1]) return i;
   return W;
 }
 
-// ============================================================================
-// ── Feature 5: CO_HistogramAMI_even_2_5 ─────────────────────────────────────
-// ============================================================================
 __device__ static double gpu_CO_HistogramAMI_even_2_5(const double* z, int W) {
   const int tau = 2, nBins = 5;
   int sz = W - tau;
@@ -354,7 +312,6 @@ __device__ static double gpu_CO_HistogramAMI_even_2_5(const double* z, int W) {
   double edges[6];
   for (int b = 0; b <= nBins; b++) edges[b] = mn + b * binStep - 0.1;
 
-  // assign bins for y1=z[0..sz-1], y2=z[tau..sz+tau-1]
   int bins1[C22_GPU_MAX_W], bins2[C22_GPU_MAX_W];
   for (int i = 0; i < sz; i++) {
     bins1[i] = 0;
@@ -371,13 +328,11 @@ __device__ static double gpu_CO_HistogramAMI_even_2_5(const double* z, int W) {
       }
   }
 
-  // joint histogram (nBins×nBins)
   double pij[5][5] = {{}};
   for (int i = 0; i < sz; i++) {
     int b1 = bins1[i] - 1, b2 = bins2[i] - 1;
     if (b1 >= 0 && b1 < nBins && b2 >= 0 && b2 < nBins) pij[b1][b2]++;
   }
-  // normalise
   double tot = 0;
   for (int a = 0; a < nBins; a++)
     for (int b = 0; b < nBins; b++) tot += pij[a][b];
@@ -385,7 +340,6 @@ __device__ static double gpu_CO_HistogramAMI_even_2_5(const double* z, int W) {
   for (int a = 0; a < nBins; a++)
     for (int b = 0; b < nBins; b++) pij[a][b] /= tot;
 
-  // marginals
   double pi[5] = {}, pj[5] = {};
   for (int a = 0; a < nBins; a++)
     for (int b = 0; b < nBins; b++) {
@@ -401,9 +355,6 @@ __device__ static double gpu_CO_HistogramAMI_even_2_5(const double* z, int W) {
   return ami;
 }
 
-// ============================================================================
-// ── Feature 6: CO_trev_1_num ─────────────────────────────────────────────────
-// ============================================================================
 __device__ static double gpu_CO_trev_1_num(const double* z, int W) {
   double s = 0.0;
   for (int i = 0; i < W - 1; i++) {
@@ -413,9 +364,6 @@ __device__ static double gpu_CO_trev_1_num(const double* z, int W) {
   return s / (W - 1);
 }
 
-// ============================================================================
-// ── Feature 7: MD_hrv_classic_pnn40 ─────────────────────────────────────────
-// ============================================================================
 __device__ static double gpu_MD_hrv_pnn40(const double* z, int W) {
   int cnt = 0;
   for (int i = 0; i < W - 1; i++)
@@ -423,9 +371,6 @@ __device__ static double gpu_MD_hrv_pnn40(const double* z, int W) {
   return (double)cnt / (W - 1);
 }
 
-// ============================================================================
-// ── Feature 8: SB_BinaryStats_mean_longstretch1 ──────────────────────────────
-// ============================================================================
 __device__ static double gpu_SB_BinaryStats_mean_longstretch1(const double* z,
                                                               int W) {
   double m = gpu_mean(z, W);
@@ -441,12 +386,8 @@ __device__ static double gpu_SB_BinaryStats_mean_longstretch1(const double* z,
   return (double)maxStr;
 }
 
-// ============================================================================
-// ── Feature 9: SB_TransitionMatrix_3ac_sumdiagcov ────────────────────────────
-// ============================================================================
 __device__ static double gpu_SB_TransitionMatrix_3ac_sumdiagcov(
     const double* z, int W, const double* ac, double* tmp_sort) {
-  // tau = first zero-crossing of AC
   int tau = 0;
   for (int i = 0; i < W; i++)
     if (ac[i + 1] <= 0.0) {
@@ -455,16 +396,13 @@ __device__ static double gpu_SB_TransitionMatrix_3ac_sumdiagcov(
     }
   if (tau == 0) tau = W;
 
-  // downsample
   int nDown = (W - 1) / tau + 1;
   double yDown[C22_GPU_MAX_W];
   for (int i = 0; i < nDown; i++) yDown[i] = z[i * tau];
 
-  // coarse-grain (3 quantile groups)
   int yCG[C22_GPU_MAX_W];
   gpu_coarsegrain_quantile(yDown, nDown, 3, yCG, tmp_sort);
 
-  // 3×3 transition matrix
   double T[3][3] = {{}};
   for (int j = 0; j < nDown - 1; j++) {
     int r = yCG[j] - 1, c = yCG[j + 1] - 1;
@@ -473,7 +411,6 @@ __device__ static double gpu_SB_TransitionMatrix_3ac_sumdiagcov(
   for (int r = 0; r < 3; r++)
     for (int c = 0; c < 3; c++) T[r][c] /= (nDown - 1);
 
-  // columns
   double col0[3], col1[3], col2[3];
   for (int r = 0; r < 3; r++) {
     col0[r] = T[r][0];
@@ -481,7 +418,6 @@ __device__ static double gpu_SB_TransitionMatrix_3ac_sumdiagcov(
     col2[r] = T[r][2];
   }
 
-  // cov(col_i, col_i) = variance of each column (diagonal of 3×3 cov matrix)
   double sumdiagcov = 0.0;
   double* cols[3] = {col0, col1, col2};
   for (int k = 0; k < 3; k++) {
@@ -505,20 +441,15 @@ __device__ static double gpu_SB_TransitionMatrix_3ac_sumdiagcov(
 // ============================================================================
 __device__ __noinline__ static void gpu_splinefit(const double* y, int n,
                                                   double* yOut) {
-  // breakpoints
   int br[3];
   br[0] = 0;
   br[1] = (int)floor((double)n / 2.0) - 1;
   br[2] = n - 1;
 
-  int h0 = br[1] - br[0];  // spacing of first piece
-  int h1 = br[2] - br[1];  // spacing of second piece
-
-  // hCopy[4] = {h0, h1, h0, h1}
+  int h0 = br[1] - br[0];
+  int h1 = br[2] - br[1];
   int hCopy[4] = {h0, h1, h0, h1};
 
-  // Extended breaks to the LEFT  (hl = hCopy reversed subset)
-  // hl[0]=hCopy[3]=h1, hl[1]=hCopy[2]=h0, hl[2]=hCopy[1]=h1
   int hl[3], hlCS[3];
   hl[0] = hCopy[3];
   hl[1] = hCopy[2];
@@ -529,8 +460,6 @@ __device__ __noinline__ static void gpu_splinefit(const double* y, int n,
   int bl[3];
   for (int i = 0; i < 3; i++) bl[i] = br[0] - hlCS[i];
 
-  // Extended breaks to the RIGHT
-  // hr[0]=hCopy[0]=h0, hr[1]=hCopy[1]=h1, hr[2]=hCopy[2]=h0
   int hr[3], hrCS[3];
   hr[0] = hCopy[0];
   hr[1] = hCopy[1];
@@ -541,7 +470,6 @@ __device__ __noinline__ static void gpu_splinefit(const double* y, int n,
   int brr[3];
   for (int i = 0; i < 3; i++) brr[i] = br[2] + hrCS[i];
 
-  // Full extended breakpoints (9 entries)
   int breaksExt[9];
   for (int i = 0; i < 3; i++) {
     breaksExt[i] = bl[2 - i];
@@ -551,7 +479,6 @@ __device__ __noinline__ static void gpu_splinefit(const double* y, int n,
   int hExt[8];
   for (int i = 0; i < 8; i++) hExt[i] = breaksExt[i + 1] - breaksExt[i];
 
-  // Index matrix ii[4][8]: ii[r][c] = min(r+c, 7)
   int ii[4][8];
   for (int c = 0; c < 8; c++) {
     ii[0][c] = (c < 8) ? c : 7;
@@ -560,11 +487,9 @@ __device__ __noinline__ static void gpu_splinefit(const double* y, int n,
     ii[3][c] = (c + 3 < 8) ? c + 3 : 7;
   }
 
-  // H[32]: H[l] = hExt[ii[l%4][l/4]]
   double H[32];
   for (int l = 0; l < 32; l++) H[l] = (double)hExt[ii[l % 4][l / 4]];
 
-  // coefs[32][5] — B-spline polynomial coefficients (initialised to step fns)
   double coefs[32][5];
   for (int i = 0; i < 32; i++)
     for (int j = 0; j < 5; j++) coefs[i][j] = 0.0;
@@ -572,22 +497,17 @@ __device__ __noinline__ static void gpu_splinefit(const double* y, int n,
 
   double Q[4][8];
 
-  // Recursive B-spline generation: build order-1..4 B-splines
   for (int k = 1; k < 4; k++) {
-    // antiderivatives: scale coefs[*][0..k-1] by H/(k-j)
     for (int j = 0; j < k; j++)
       for (int l = 0; l < 32; l++) coefs[l][j] *= H[l] / (double)(k - j);
 
-    // Q[row][col] = sum of coefs row for col
     for (int l = 0; l < 32; l++) {
       Q[l % 4][l / 4] = 0.0;
       for (int m = 0; m < 4; m++) Q[l % 4][l / 4] += coefs[l][m];
     }
-    // cumsum Q along rows (column by column)
     for (int col = 0; col < 8; col++)
       for (int row = 1; row < 4; row++) Q[row][col] += Q[row - 1][col];
 
-    // update coefs[*][k] from Q (Q[row-1] for row>0, 0 for row==0)
     for (int l = 0; l < 32; l++) {
       if (l % 4 == 0)
         coefs[l][k] = 0.0;
@@ -595,21 +515,17 @@ __device__ __noinline__ static void gpu_splinefit(const double* y, int n,
         coefs[l][k] = Q[(l % 4) - 1][l / 4];
     }
 
-    // normalise by fmax = Q[3][col]: coefs[l][0..k] /= Q[3][l/4]
     for (int j = 0; j <= k; j++)
       for (int l = 0; l < 32; l++) {
         double fmax = Q[3][l / 4];
         if (fabs(fmax) > 1e-30) coefs[l][j] /= fmax;
       }
 
-    // diff to adjacent antiderivatives: coefs[l] -= coefs[l+3] for l=0..28
     for (int l = 0; l < 29; l++)
       for (int j = 0; j <= k; j++) coefs[l][j] -= coefs[l + 3][j];
-    // zero out every 4th coef[k]
     for (int l = 0; l < 32; l += 4) coefs[l][k] = 0.0;
   }
 
-  // Scale polynomial coefficients
   double scale[32];
   for (int i = 0; i < 32; i++) scale[i] = 1.0;
   for (int k = 0; k < 3; k++) {
@@ -617,22 +533,18 @@ __device__ __noinline__ static void gpu_splinefit(const double* y, int n,
     for (int i = 0; i < 32; i++) coefs[i][3 - (k + 1)] *= scale[i];
   }
 
-  // jj[4][2]: reduction index matrix
   int jj[4][2];
   for (int i = 0; i < 4; i++)
     for (int j = 0; j < 2; j++) jj[i][j] = (i == 0) ? 4 * (1 + j) : 3;
-  // cumsum along rows
   for (int i = 1; i < 4; i++)
     for (int j = 0; j < 2; j++) jj[i][j] += jj[i - 1][j];
 
-  // coefsOut[8][4]: extracted B-spline piece coefficients
   double coefsOut[8][4];
   for (int l = 0; l < 8; l++) {
     int jj_flat = jj[l % 4][l / 4] - 1;
     for (int j = 0; j < 4; j++) coefsOut[l][j] = coefs[jj_flat][j];
   }
 
-  // Build basis matrix A (n × 5) using B-splines
   int xsB[C22_GPU_MAX_W * 4];
   int indexB[C22_GPU_MAX_W * 4];
   double vB[C22_GPU_MAX_W * 4];
@@ -646,13 +558,11 @@ __device__ __noinline__ static void gpu_splinefit(const double* y, int n,
       }
     }
     for (int i = 0; i < n * 4; i++) vB[i] = coefsOut[indexB[i]][0];
-    // Horner's method for basis evaluation
     for (int k = 1; k < 4; k++)
       for (int j = 0; j < n * 4; j++)
         vB[j] = vB[j] * (double)xsB[j] + coefsOut[indexB[j]][k];
   }
 
-  // Fill A matrix (n rows, 5 columns)
   double Amat[C22_GPU_MAX_W * 5];
   for (int i = 0; i < 5 * n; i++) Amat[i] = 0.0;
   {
@@ -663,7 +573,6 @@ __device__ __noinline__ static void gpu_splinefit(const double* y, int n,
     }
   }
 
-  // Solve normal equations A^T*A * x = A^T*y  (5×5 system)
   double ATA[5][5], ATy[5];
   for (int r = 0; r < 5; r++) {
     for (int c = 0; c < 5; c++) {
@@ -675,7 +584,6 @@ __device__ __noinline__ static void gpu_splinefit(const double* y, int n,
     for (int k = 0; k < n; k++) s += Amat[k * 5 + r] * y[k];
     ATy[r] = s;
   }
-  // Gaussian elimination on augmented [ATA | ATy]
   double aug[5][6];
   for (int r = 0; r < 5; r++) {
     for (int c = 0; c < 5; c++) aug[r][c] = ATA[r][c];
@@ -694,7 +602,6 @@ __device__ __noinline__ static void gpu_splinefit(const double* y, int n,
     x[r] = (fabs(aug[r][r]) > 1e-30) ? x[r] / aug[r][r] : 0.0;
   }
 
-  // C_mat[5][8]: combine piece coefs
   double C_mat[5][8];
   for (int i = 0; i < 5; i++)
     for (int j = 0; j < 8; j++) C_mat[i][j] = 0.0;
@@ -706,7 +613,6 @@ __device__ __noinline__ static void gpu_splinefit(const double* y, int n,
     C_mat[CRow][CCol] = coefsOut[coefRow][coefCol];
   }
 
-  // coefsSpline[2][4]: final piecewise polynomial coefficients
   double coefsSpline[2][4];
   for (int i = 0; i < 2; i++)
     for (int j = 0; j < 4; j++) coefsSpline[i][j] = 0.0;
@@ -717,7 +623,6 @@ __device__ __noinline__ static void gpu_splinefit(const double* y, int n,
       coefsSpline[coefRow][coefCol] += C_mat[i][j] * x[i];
   }
 
-  // Evaluate piecewise polynomial using Horner's method
   for (int i = 0; i < n; i++) {
     int sh = (i < br[1]) ? 0 : 1;
     yOut[i] = coefsSpline[sh][0];
@@ -730,27 +635,18 @@ __device__ __noinline__ static void gpu_splinefit(const double* y, int n,
   }
 }
 
-// ============================================================================
-// ── Feature 10: PD_PeriodicityWang_th0_01 ───────────────────────────────────
-// Exact port: spline detrend (gpu_splinefit) + Pearson autocov
-// (gpu_autocov_cov_mean).
-// ============================================================================
 __device__ __noinline__ static int gpu_PD_PeriodicityWang(const double* z,
                                                           int W, double* tmp) {
-  // tmp (size W, from outer function's tmp_sort) used as spline scratch
   gpu_splinefit(z, W, tmp);
 
-  // detrend: ySub = z - spline
   double ySub[C22_GPU_MAX_W];
   for (int i = 0; i < W; i++) ySub[i] = z[i] - tmp[i];
 
-  // autocov of detrended signal (Pearson cov, matching CPU's autocov_lag)
   int acmax = (int)ceil((double)W / 3.0);
   double acf[C22_GPU_MAX_W];
   for (int lag = 1; lag <= acmax; lag++)
     acf[lag - 1] = gpu_autocov_cov_mean(ySub, W, lag);
 
-  // find troughs and peaks in ACF
   double troughs[C22_GPU_MAX_W], peaks[C22_GPU_MAX_W];
   int nTroughs = 0, nPeaks = 0;
   for (int i = 1; i < acmax - 1; i++) {
@@ -762,7 +658,6 @@ __device__ __noinline__ static int gpu_PD_PeriodicityWang(const double* z,
       peaks[nPeaks++] = i;
   }
 
-  // first peak that satisfies: trough before it, peak-trough >= 0.01, peak > 0
   for (int i = 0; i < nPeaks; i++) {
     int iPeak = (int)peaks[i];
     double thePeak = acf[iPeak];
@@ -778,9 +673,6 @@ __device__ __noinline__ static int gpu_PD_PeriodicityWang(const double* z,
   return 0;
 }
 
-// ============================================================================
-// ── Feature 11: CO_Embed2_Dist_tau_d_expfit_meandiff ─────────────────────────
-// ============================================================================
 __device__ static double gpu_CO_Embed2_Dist_expfit(const double* z, int W,
                                                    int tau) {
   if (tau <= 0) tau = 1;
@@ -790,7 +682,6 @@ __device__ static double gpu_CO_Embed2_Dist_expfit(const double* z, int W,
   int sz = W - tau - 1;
   if (sz <= 0) return 0.0;
 
-  // distances in 2D embedding
   double d[C22_GPU_MAX_W];
   for (int i = 0; i < sz; i++) {
     double dx = z[i + 1] - z[i], dy = z[i + tau] - z[i + tau + 1];
@@ -799,7 +690,6 @@ __device__ static double gpu_CO_Embed2_Dist_expfit(const double* z, int W,
   double l = gpu_mean(d, sz);
   if (l < 1e-30) return 0.0;
 
-  // histogram (auto bins)
   double mn = gpu_min(d, sz), mx = gpu_max(d, sz);
   double sd = gpu_stddev(d, sz);
   if (sd < 0.001) return 0.0;
@@ -829,16 +719,11 @@ __device__ static double gpu_CO_Embed2_Dist_expfit(const double* z, int W,
   return acc / nBins;
 }
 
-// ============================================================================
-// ── Feature 12: IN_AutoMutualInfoStats_40_gaussian_fmmi ──────────────────────
-// ============================================================================
 __device__ static double gpu_IN_AutoMutualInfoStats(const double* z, int W) {
   int tau = 40;
   if (tau > (int)ceil((double)W / 2)) tau = (int)ceil((double)W / 2);
   double ami[40];
   for (int i = 0; i < tau; i++) {
-    // pycatch22 uses autocorr_lag() = Pearson corr of two sub-slices,
-    // NOT the global sum/sum² form used by co_autocorrs().
     double ac = gpu_autocorr_pearson_lag(z, W, i + 1);
     double ac2 = ac * ac;
     ami[i] = (ac2 >= 1.0) ? 0.0 : -0.5 * log(1.0 - ac2);
@@ -848,13 +733,9 @@ __device__ static double gpu_IN_AutoMutualInfoStats(const double* z, int W) {
   return (double)tau;
 }
 
-// ============================================================================
-// ── Feature 13: FC_LocalSimple_mean1_tauresrat ───────────────────────────────
-// ============================================================================
 __device__ static double gpu_FC_LocalSimple_mean_tauresrat(const double* z,
                                                            int W, int train,
                                                            const double* ac) {
-  // residuals of mean-1 forecast
   double res[C22_GPU_MAX_W];
   for (int i = 0; i < W - train; i++) {
     double yest = 0;
@@ -864,7 +745,6 @@ __device__ static double gpu_FC_LocalSimple_mean_tauresrat(const double* z,
   }
   int resSize = W - train;
 
-  // first zero crossings of res and y
   double acRes[C22_GPU_MAX_W];
   gpu_co_autocorrs(res, resSize, acRes, resSize);
   int resAC1Z = gpu_co_firstzero(res, resSize, acRes, resSize);
@@ -873,9 +753,6 @@ __device__ static double gpu_FC_LocalSimple_mean_tauresrat(const double* z,
   return (double)resAC1Z / (double)yAC1Z;
 }
 
-// ============================================================================
-// ── Feature 14/15: DN_OutlierInclude ─────────────────────────────────────────
-// ============================================================================
 __device__ __noinline__ static double gpu_DN_OutlierInclude(
     const double* z, int W, double sign,
     double* r,          // W doubles
@@ -884,7 +761,6 @@ __device__ __noinline__ static double gpu_DN_OutlierInclude(
     double* msDti4,     // nThresh
     double* med_tmp) {  // W doubles
   double inc = 0.01;
-  // check constant
   int constant = 1;
   for (int i = 0; i < W; i++)
     if (z[i] != z[0]) {
@@ -893,7 +769,6 @@ __device__ __noinline__ static double gpu_DN_OutlierInclude(
     }
   if (constant) return 0.0;
 
-  // apply sign
   double yW[C22_GPU_MAX_W];
   int tot = 0;
   for (int i = 0; i < W; i++) {
@@ -933,10 +808,6 @@ __device__ __noinline__ static double gpu_DN_OutlierInclude(
   return gpu_median(msDti4, trimLimit + 1, med_tmp);
 }
 
-// ============================================================================
-// ── Features 16+21: SP_Summaries_welch_rect ──────────────────────────────────
-// Returns area_5_1 in [0] and centroid in [1]
-// ============================================================================
 __device__ __noinline__ static void gpu_SP_Summaries_welch_rect(
     const double* z, int W, double* area_out, double* centroid_out,
     double* Fre,    // SP_NFFT
@@ -946,12 +817,8 @@ __device__ __noinline__ static void gpu_SP_Summaries_welch_rect(
   if (NFFT > C22_GPU_SP_NFFT) NFFT = C22_GPU_SP_NFFT;
 
   double m = gpu_mean(z, W);
-  // KMU = k * ||w||²  (Welch normalisation factor)
-  // k=1 window (floor(W/(W/2))-1=1), rectangular window ||w||² = W.
-  // Bug fix: was NFFT*NFFT which is 64²=4096 vs correct W=50 → 82× error.
   double KMU = (double)W;
 
-  // Single Welch window (k=1 for W≈NFFT)
   double P[C22_GPU_SP_NFFT] = {};
   for (int i = 0; i < NFFT; i++) {
     Fre[i] = (i < W) ? z[i] - m : 0.0;
@@ -960,7 +827,6 @@ __device__ __noinline__ static void gpu_SP_Summaries_welch_rect(
   gpu_fft(Fre, Fim, NFFT);
   for (int i = 0; i < NFFT; i++) P[i] = Fre[i] * Fre[i] + Fim[i] * Fim[i];
 
-  // one-sided spectrum with dt=1, df=1/NFFT
   double dt = 1.0, df = 1.0 / NFFT;
   int Nout = NFFT / 2 + 1;
   double Pxx[C22_GPU_SP_NFFT / 2 + 1], f_arr[C22_GPU_SP_NFFT / 2 + 1];
@@ -970,7 +836,6 @@ __device__ __noinline__ static void gpu_SP_Summaries_welch_rect(
     f_arr[i] = (double)i * df;
   }
 
-  // angular freq and spectrum
   double w_arr[C22_GPU_SP_NFFT / 2 + 1], Sw[C22_GPU_SP_NFFT / 2 + 1];
   for (int i = 0; i < Nout; i++) {
     w_arr[i] = 2.0 * PI * f_arr[i];
@@ -983,17 +848,14 @@ __device__ __noinline__ static void gpu_SP_Summaries_welch_rect(
   }
   double dw = (Nout > 1) ? w_arr[1] - w_arr[0] : 1.0;
 
-  // cumsum of Sw
   double csS[C22_GPU_SP_NFFT / 2 + 1];
   csS[0] = Sw[0];
   for (int i = 1; i < Nout; i++) csS[i] = csS[i - 1] + Sw[i];
 
-  // area_5_1: integral over first fifth of spectrum
   double area = 0;
   for (int i = 0; i < Nout / 5; i++) area += Sw[i];
   *area_out = area * dw;
 
-  // centroid: freq where cumsum exceeds 50%
   double threshold = csS[Nout - 1] * 0.5;
   *centroid_out = 0;
   for (int i = 0; i < Nout; i++)
@@ -1003,9 +865,6 @@ __device__ __noinline__ static void gpu_SP_Summaries_welch_rect(
     }
 }
 
-// ============================================================================
-// ── Feature 17: SB_BinaryStats_diff_longstretch0 ─────────────────────────────
-// ============================================================================
 __device__ static double gpu_SB_BinaryStats_diff_longstretch0(const double* z,
                                                               int W) {
   int maxStr = 0, last1 = 0;
@@ -1020,16 +879,12 @@ __device__ static double gpu_SB_BinaryStats_diff_longstretch0(const double* z,
   return (double)maxStr;
 }
 
-// ============================================================================
-// ── Feature 18: SB_MotifThree_quantile_hh ────────────────────────────────────
-// ============================================================================
 __device__ static double gpu_SB_MotifThree_quantile_hh(const double* z, int W,
                                                        double* tmp_sort) {
   const int G = 3;
   int yt[C22_GPU_MAX_W];
   gpu_coarsegrain_quantile(z, W, G, yt, tmp_sort);
 
-  // word frequencies (length-2 transitions)
   double out2[3][3] = {{}};
   for (int j = 0; j < W - 1; j++) {
     int a = yt[j] - 1, b = yt[j + 1] - 1;
@@ -1038,7 +893,6 @@ __device__ static double gpu_SB_MotifThree_quantile_hh(const double* z, int W,
   for (int a = 0; a < G; a++)
     for (int b = 0; b < G; b++) out2[a][b] /= (W - 1);
 
-  // entropy of each row
   double hh = 0.0;
   for (int a = 0; a < G; a++) {
     for (int b = 0; b < G; b++) {
@@ -1055,8 +909,8 @@ __device__ static double gpu_SB_MotifThree_quantile_hh(const double* z, int W,
 // sserr[k] = norm(residuals_seg1) + norm(residuals_seg2)   (sum of L2 norms)
 // ============================================================================
 __device__ static double gpu_sc_fluct_breakpoint(const double* logtt,
-                                                  const double* logFF, int ntt,
-                                                  double* sserr) {
+                                                 const double* logFF, int ntt,
+                                                 double* sserr) {
   int minPoints = 6;
   int nsserr = ntt - 2 * minPoints + 1;
   if (nsserr <= 0) return 0.0;
@@ -1069,28 +923,23 @@ __device__ static double gpu_sc_fluct_breakpoint(const double* logtt,
     gpu_linreg(logtt, logFF, i, &m1, &b1);
     gpu_linreg(logtt + (i - 1), logFF + (i - 1), ntt - i + 1, &m2, &b2);
 
-    // Compute L2 norm of residuals for first segment
     double ss1 = 0.0;
     for (int j = 0; j < i; j++) {
       double e = logtt[j] * m1 + b1 - logFF[j];
       ss1 += e * e;
     }
 
-    // Compute L2 norm of residuals for second segment
     double ss2 = 0.0;
     for (int j = 0; j < ntt - i + 1; j++) {
       double e = logtt[j + i - 1] * m2 + b2 - logFF[j + i - 1];
       ss2 += e * e;
     }
 
-    // pycatch22 uses norm_(buffer, n) = sqrt(sum(e²)), then adds the two norms
     double sval = sqrt(ss1) + sqrt(ss2);
     sserr[i - minPoints] = sval;
 
     if (sval < bestSS) {
       bestSS = sval;
-      // pycatch22: firstMinInd = (sserr_idx) + minPoints - 1
-      //          = (i - minPoints) + minPoints - 1  =  i - 1
       firstMinInd = (double)(i - 1);
     }
   }
@@ -1110,9 +959,7 @@ __device__ __noinline__ static void gpu_SC_FluctAnal(
     double* logFF,  // 50 doubles
     double* sserr,  // 50 doubles
     double* buf) {  // W/2 doubles
-  // ---- Shared: log-spaced tau vector (independent of lag) ----
   double linLow = log(5.0);
-  // pycatch22 uses integer division: linHigh = log(size/2)
   double linHigh = log((double)(W / 2));
   int nTauSteps = 50;
   double tauStep = (linHigh - linLow) / (nTauSteps - 1);
@@ -1120,7 +967,6 @@ __device__ __noinline__ static void gpu_SC_FluctAnal(
   for (int i = 0; i < nTauSteps; i++)
     tau[i] = (int)round(exp(linLow + i * tauStep));
 
-  // deduplicate
   int nTau = nTauSteps;
   for (int i = 0; i < nTau - 1;) {
     if (tau[i] == tau[i + 1]) {
@@ -1138,16 +984,13 @@ __device__ __noinline__ static void gpu_SC_FluctAnal(
   int maxTau = tau[nTau - 1];
   for (int i = 0; i < maxTau; i++) xReg[i] = (double)(i + 1);
 
-  // precompute log(tau)
   for (int i = 0; i < nTau; i++) logtt[i] = log((double)tau[i]);
 
-  // ---- rsrangefit (lag = 1) ----
   {
     int lag = 1;
     int sizeCS = W / lag;
     yCS[0] = z[0];
-    for (int i = 0; i < sizeCS - 1; i++)
-      yCS[i + 1] = yCS[i] + z[(i + 1) * lag];
+    for (int i = 0; i < sizeCS - 1; i++) yCS[i + 1] = yCS[i] + z[(i + 1) * lag];
 
     double FArr[50] = {};
     for (int ti = 0; ti < nTau; ti++) {
@@ -1175,13 +1018,11 @@ __device__ __noinline__ static void gpu_SC_FluctAnal(
     *rsrange_out = gpu_sc_fluct_breakpoint(logtt, logFF, nTau, sserr);
   }
 
-  // ---- dfa (lag = 2) ----
   {
     int lag = 2;
     int sizeCS = W / lag;
     yCS[0] = z[0];
-    for (int i = 0; i < sizeCS - 1; i++)
-      yCS[i + 1] = yCS[i] + z[(i + 1) * lag];
+    for (int i = 0; i < sizeCS - 1; i++) yCS[i + 1] = yCS[i] + z[(i + 1) * lag];
 
     double FArr[50] = {};
     for (int ti = 0; ti < nTau; ti++) {
@@ -1209,9 +1050,6 @@ __device__ __noinline__ static void gpu_SC_FluctAnal(
   }
 }
 
-// ============================================================================
-// ── Feature 22: FC_LocalSimple_mean3_stderr ──────────────────────────────────
-// ============================================================================
 __device__ static double gpu_FC_LocalSimple_mean3_stderr(const double* z,
                                                          int W) {
   const int train = 3;
@@ -1228,100 +1066,62 @@ __device__ static double gpu_FC_LocalSimple_mean3_stderr(const double* z,
 // ============================================================================
 __device__ static void c22_compute_one_subsequence(const double* sub, int W,
                                                    double* feats) {
-  // ── Workspace allocation (all local = L1-cached) ──────────────────────────
-  double z[C22_GPU_MAX_W];       // z-scored subsequence
-  double ac[C22_GPU_MAX_W + 1];  // autocorrelations, lags 0..W
-
-  // For SC_FluctAnal
+  double z[C22_GPU_MAX_W];
+  double ac[C22_GPU_MAX_W + 1];
   double sc_yCS[C22_GPU_MAX_W];
   double sc_xReg[C22_GPU_MAX_W / 2];
   double sc_logtt[50], sc_logFF[50], sc_sserr[50];
   double sc_buf[C22_GPU_MAX_W / 2];
-
-  // For SP_Summaries FFT
   double sp_Fre[C22_GPU_SP_NFFT], sp_Fim[C22_GPU_SP_NFFT];
-
-  // For DN_OutlierInclude (largest workspace)
   double oi_r[C22_GPU_MAX_W];
   double oi_msDti1[C22_GPU_MAX_NTHRESH];
   double oi_msDti3[C22_GPU_MAX_NTHRESH];
   double oi_msDti4[C22_GPU_MAX_NTHRESH];
   double oi_med[C22_GPU_MAX_W];
-
-  // General sort scratch
   double tmp_sort[C22_GPU_MAX_W];
 
-  // ── Z-score normalise ─────────────────────────────────────────────────────
   gpu_zscore(sub, W, z);
-
-  // ── Autocorrelations (computed once, reused by multiple features) ─────────
   gpu_co_autocorrs(z, W, ac, W);
   int firstZero = gpu_co_firstzero(z, W, ac, W);
 
-  // ── Feature 1: DN_HistogramMode_5 ────────────────────────────────────────
   feats[0] = gpu_DN_HistogramMode(z, W, 5);
-  // ── Feature 2: DN_HistogramMode_10 ───────────────────────────────────────
   feats[1] = gpu_DN_HistogramMode(z, W, 10);
-  // ── Feature 3: CO_f1ecac ─────────────────────────────────────────────────
   feats[2] = gpu_CO_f1ecac(z, W, ac);
-  // ── Feature 4: CO_FirstMin_ac ────────────────────────────────────────────
   feats[3] = (double)gpu_CO_FirstMin_ac(ac, W);
-  // ── Feature 5: CO_HistogramAMI_even_2_5 ──────────────────────────────────
   feats[4] = gpu_CO_HistogramAMI_even_2_5(z, W);
-  // ── Feature 6: CO_trev_1_num ─────────────────────────────────────────────
   feats[5] = gpu_CO_trev_1_num(z, W);
-  // ── Feature 7: MD_hrv_classic_pnn40 ──────────────────────────────────────
   feats[6] = gpu_MD_hrv_pnn40(z, W);
-  // ── Feature 8: SB_BinaryStats_mean_longstretch1 ───────────────────────────
   feats[7] = gpu_SB_BinaryStats_mean_longstretch1(z, W);
-  // ── Feature 9: SB_TransitionMatrix_3ac_sumdiagcov ─────────────────────────
   feats[8] = gpu_SB_TransitionMatrix_3ac_sumdiagcov(z, W, ac, tmp_sort);
-  // ── Feature 10: PD_PeriodicityWang_th0_01 ────────────────────────────────
   feats[9] = (double)gpu_PD_PeriodicityWang(z, W, tmp_sort);
-  // ── Feature 11: CO_Embed2_Dist_tau_d_expfit_meandiff ─────────────────────
   feats[10] = gpu_CO_Embed2_Dist_expfit(z, W, firstZero);
-  // ── Feature 12: IN_AutoMutualInfoStats_40_gaussian_fmmi ───────────────────
   feats[11] = gpu_IN_AutoMutualInfoStats(z, W);
-  // ── Feature 13: FC_LocalSimple_mean1_tauresrat ────────────────────────────
   feats[12] = gpu_FC_LocalSimple_mean_tauresrat(z, W, 1, ac);
-  // ── Feature 14: DN_OutlierInclude_p_001_mdrmd ─────────────────────────────
   feats[13] = gpu_DN_OutlierInclude(z, W, 1.0, oi_r, oi_msDti1, oi_msDti3,
                                     oi_msDti4, oi_med);
-  // ── Feature 15: DN_OutlierInclude_n_001_mdrmd ─────────────────────────────
   feats[14] = gpu_DN_OutlierInclude(z, W, -1.0, oi_r, oi_msDti1, oi_msDti3,
                                     oi_msDti4, oi_med);
-  // ── Features 16+21: SP_Summaries (computed together via shared FFT) ───────
   {
     double area, centroid;
     gpu_SP_Summaries_welch_rect(z, W, &area, &centroid, sp_Fre, sp_Fim);
-    feats[15] = area;      // SP_Summaries_welch_rect_area_5_1
-    feats[20] = centroid;  // SP_Summaries_welch_rect_centroid
+    feats[15] = area;
+    feats[20] = centroid;
   }
-  // ── Feature 17: SB_BinaryStats_diff_longstretch0 ─────────────────────────
   feats[16] = gpu_SB_BinaryStats_diff_longstretch0(z, W);
-  // ── Feature 18: SB_MotifThree_quantile_hh ────────────────────────────────
   feats[17] = gpu_SB_MotifThree_quantile_hh(z, W, tmp_sort);
-  // ── Features 19+20: SC_FluctAnal ─────────────────────────────────────────
   {
     double rsrange, dfa;
-    gpu_SC_FluctAnal(z, W, &rsrange, &dfa, sc_yCS, sc_xReg,
-                     sc_logtt, sc_logFF, sc_sserr, sc_buf);
-    feats[18] = rsrange;  // SC_FluctAnal_2_rsrangefit_50_1_logi_prop_r1
-    feats[19] = dfa;      // SC_FluctAnal_2_dfa_50_1_2_logi_prop_r1
+    gpu_SC_FluctAnal(z, W, &rsrange, &dfa, sc_yCS, sc_xReg, sc_logtt, sc_logFF,
+                     sc_sserr, sc_buf);
+    feats[18] = rsrange;
+    feats[19] = dfa;
   }
-  // ── Feature 22: FC_LocalSimple_mean3_stderr ───────────────────────────────
   feats[21] = gpu_FC_LocalSimple_mean3_stderr(z, W);
 
-  // Replace any NaN/Inf with 0 (matches CPU behaviour in c22_features.cpp)
   for (int f = 0; f < C22_GPU_NUM_FEAT; f++)
     if (!isfinite(feats[f])) feats[f] = 0.0;
 }
 
-// ============================================================================
-// ── Global kernel: one thread per subsequence ────────────────────────────────
-// Grid: ceil(N / C22_GPU_BLOCK_SIZE) × 1
-// Block: C22_GPU_BLOCK_SIZE × 1
-// ============================================================================
 __global__ void c22_compute_features_kernel(
     const double* __restrict__ timeseries,  // raw time series (ts_length)
     int ts_length, int window,
@@ -1329,21 +1129,15 @@ __global__ void c22_compute_features_kernel(
     double* __restrict__ features_out) {  // N × 22 (row-major)
   int idx = blockIdx.x * blockDim.x + threadIdx.x;
   if (idx >= N) return;
-  if (window > C22_GPU_MAX_W) return;  // skip (handled by CPU fallback)
+  if (window > C22_GPU_MAX_W) return;
 
-  const double* sub = timeseries + idx;  // subsequence starts here
+  const double* sub = timeseries + idx;
   double* out = features_out + (size_t)idx * C22_GPU_NUM_FEAT;
   c22_compute_one_subsequence(sub, window, out);
 }
 
-// ============================================================================
-// ── Host launch wrapper
-// ───────────────────────────────────────────────────────
-// ============================================================================
 extern "C" {
 
-// Compute all N×22 features on GPU for the given timeseries.
-// Returns true on success; false if window > C22_GPU_MAX_W (caller uses CPU).
 bool c22_compute_features_gpu_launch(const double* h_ts, int ts_length,
                                      int window, int N, double* h_features_out,
                                      int gpu_id) {
@@ -1351,8 +1145,7 @@ bool c22_compute_features_gpu_launch(const double* h_ts, int ts_length,
 
   cudaSetDevice(gpu_id);
 
-  // Increase stack size to accommodate large per-thread local arrays
-  cudaDeviceSetLimit(cudaLimitStackSize, 128 * 1024);  // 128 KB per thread
+  cudaDeviceSetLimit(cudaLimitStackSize, 128 * 1024);
 
   size_t ts_bytes = (size_t)ts_length * sizeof(double);
   size_t feat_bytes = (size_t)N * C22_GPU_NUM_FEAT * sizeof(double);

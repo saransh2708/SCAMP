@@ -71,29 +71,52 @@ namespace SCAMP {
 // ============================================================================
 static double compute_single_feature(int f, const double* z, int n) {
   switch (f) {
-    case 0:  return DN_HistogramMode_5(z, n);
-    case 1:  return DN_HistogramMode_10(z, n);
-    case 2:  return CO_f1ecac(z, n);
-    case 3:  return static_cast<double>(CO_FirstMin_ac(z, n));
-    case 4:  return CO_HistogramAMI_even_2_5(z, n);
-    case 5:  return CO_trev_1_num(z, n);
-    case 6:  return MD_hrv_classic_pnn40(z, n);
-    case 7:  return SB_BinaryStats_mean_longstretch1(z, n);
-    case 8:  return SB_TransitionMatrix_3ac_sumdiagcov(z, n);
-    case 9:  return static_cast<double>(PD_PeriodicityWang_th0_01(z, n));
-    case 10: return CO_Embed2_Dist_tau_d_expfit_meandiff(z, n);
-    case 11: return IN_AutoMutualInfoStats_40_gaussian_fmmi(z, n);
-    case 12: return FC_LocalSimple_mean1_tauresrat(z, n);
-    case 13: return DN_OutlierInclude_p_001_mdrmd(z, n);
-    case 14: return DN_OutlierInclude_n_001_mdrmd(z, n);
-    case 15: return SP_Summaries_welch_rect_area_5_1(z, n);
-    case 16: return SB_BinaryStats_diff_longstretch0(z, n);
-    case 17: return SB_MotifThree_quantile_hh(z, n);
-    case 18: return SC_FluctAnal_2_rsrangefit_50_1_logi_prop_r1(z, n);
-    case 19: return SC_FluctAnal_2_dfa_50_1_2_logi_prop_r1(z, n);
-    case 20: return SP_Summaries_welch_rect_centroid(z, n);
-    case 21: return FC_LocalSimple_mean3_stderr(z, n);
-    default: return 0.0;
+    case 0:
+      return DN_HistogramMode_5(z, n);
+    case 1:
+      return DN_HistogramMode_10(z, n);
+    case 2:
+      return CO_f1ecac(z, n);
+    case 3:
+      return static_cast<double>(CO_FirstMin_ac(z, n));
+    case 4:
+      return CO_HistogramAMI_even_2_5(z, n);
+    case 5:
+      return CO_trev_1_num(z, n);
+    case 6:
+      return MD_hrv_classic_pnn40(z, n);
+    case 7:
+      return SB_BinaryStats_mean_longstretch1(z, n);
+    case 8:
+      return SB_TransitionMatrix_3ac_sumdiagcov(z, n);
+    case 9:
+      return static_cast<double>(PD_PeriodicityWang_th0_01(z, n));
+    case 10:
+      return CO_Embed2_Dist_tau_d_expfit_meandiff(z, n);
+    case 11:
+      return IN_AutoMutualInfoStats_40_gaussian_fmmi(z, n);
+    case 12:
+      return FC_LocalSimple_mean1_tauresrat(z, n);
+    case 13:
+      return DN_OutlierInclude_p_001_mdrmd(z, n);
+    case 14:
+      return DN_OutlierInclude_n_001_mdrmd(z, n);
+    case 15:
+      return SP_Summaries_welch_rect_area_5_1(z, n);
+    case 16:
+      return SB_BinaryStats_diff_longstretch0(z, n);
+    case 17:
+      return SB_MotifThree_quantile_hh(z, n);
+    case 18:
+      return SC_FluctAnal_2_rsrangefit_50_1_logi_prop_r1(z, n);
+    case 19:
+      return SC_FluctAnal_2_dfa_50_1_2_logi_prop_r1(z, n);
+    case 20:
+      return SP_Summaries_welch_rect_centroid(z, n);
+    case 21:
+      return FC_LocalSimple_mean3_stderr(z, n);
+    default:
+      return 0.0;
   }
 }
 
@@ -116,7 +139,6 @@ static void compute_c22_features_l3(const double* z, int n,
   const int NF = C22FeatureVector::NUM_FEATURES;
 
   if (nthreads <= 1) {
-    // Fast path: no thread overhead
     for (int f = 0; f < NF; ++f) {
       double v = compute_single_feature(f, z, n);
       out.features[f] = std::isfinite(v) ? v : 0.0;
@@ -124,7 +146,6 @@ static void compute_c22_features_l3(const double* z, int n,
     return;
   }
 
-  // Spawn nthreads-1 worker threads; main thread handles thread 0's work too.
   std::vector<std::thread> workers;
   workers.reserve(nthreads - 1);
 
@@ -137,7 +158,6 @@ static void compute_c22_features_l3(const double* z, int n,
     });
   }
 
-  // Thread 0 work (main thread)
   for (int f = 0; f < NF; f += nthreads) {
     double v = compute_single_feature(f, z, n);
     out.features[f] = std::isfinite(v) ? v : 0.0;
@@ -149,8 +169,6 @@ static void compute_c22_features_l3(const double* z, int n,
 C22FeatureVector compute_c22_features_internal(const double* data, int size) {
   C22FeatureVector vec;
 
-  // Z-score normalize the data first, as required by catch22
-  // (see pycatch22/src/C/main.c line 70: zscore_norm2(y, size, y_zscored))
   std::vector<double> zscored(size);
   zscore_norm2(data, size, zscored.data());
 
@@ -162,7 +180,6 @@ C22FeatureVector compute_c22_features(const std::vector<double>& timeseries,
                                       int start_idx, int window_size) {
   if (start_idx < 0 ||
       static_cast<size_t>(start_idx + window_size) > timeseries.size()) {
-    // Return zero vector if out of bounds
     return C22FeatureVector();
   }
 
@@ -196,27 +213,21 @@ std::vector<C22FeatureVector> compute_c22_vectors_parallel(
 
   std::vector<C22FeatureVector> result(num_subsequences);
 
-  // Auto-detect hardware concurrency; fall back to 1 if detection fails
   int hw = num_threads;
   if (hw <= 0) {
     hw = static_cast<int>(std::thread::hardware_concurrency());
     if (hw <= 0) hw = 1;
   }
 
-  // Adaptive dispatch: Level 1 only vs Level 1+3
   int l1_threads, l3_threads;
   if (num_subsequences >= hw) {
-    // Enough subsequences to keep all cores busy at Level 1
     l1_threads = hw;
     l3_threads = 1;
   } else {
-    // Fewer subsequences than cores — use Level 3 to fill spare cores
     l1_threads = num_subsequences;
     l3_threads = std::max(1, hw / num_subsequences);
   }
 
-  // Parallel computation: each Level-1 thread processes a range of
-  // subsequences, calling compute_c22_features_l3() for each.
   std::vector<std::thread> threads;
   int subsequences_per_thread =
       (num_subsequences + l1_threads - 1) / l1_threads;
@@ -239,7 +250,6 @@ std::vector<C22FeatureVector> compute_c22_vectors_parallel(
     }
   }
 
-  // Wait for all Level-1 threads to complete
   for (auto& thread : threads) {
     thread.join();
   }

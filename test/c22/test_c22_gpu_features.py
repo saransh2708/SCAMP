@@ -6,7 +6,7 @@ comparing the GPU profile against the trusted CPU baseline.
 
 Run on cerebro (RTX 2080 Ti):
     cd ~/C22
-    PYTHONPATH=build/src/python python3 test/test_c22_gpu_features.py
+    PYTHONPATH=build/src/python python3 test/c22/test_c22_gpu_features.py
 
 Expected output: all checks PASS, speedup shown for large N.
 """

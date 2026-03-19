@@ -49,28 +49,22 @@ C22ProfileResult c22_profile_selfjoin_cpu(const std::vector<double>& timeseries,
     return C22ProfileResult();
   }
 
-  // Exclusion zone: same as SCAMP (window_size / 4)
   const int exclusion = window_size / 4;
 
-  // Auto-detect threads
   if (num_threads <= 0) {
     num_threads = static_cast<int>(std::thread::hardware_concurrency());
     if (num_threads <= 0) num_threads = 1;
   }
 
-  // ---- Step 1: Compute C22 feature vectors for all subsequences ----
   std::vector<C22FeatureVector> features =
       compute_c22_vectors_parallel(timeseries, window_size, num_threads);
 
-  // Flatten for cache-friendly access (N x 22 contiguous doubles)
   const int D = C22FeatureVector::NUM_FEATURES;
   std::vector<double> F = flatten_features(features);
 
-  // ---- Step 2: Compute dot products and find max per row (parallel) ----
   std::vector<double> profile(N, -std::numeric_limits<double>::infinity());
   std::vector<int> index(N, -1);
 
-  // Each thread handles a contiguous chunk of rows
   std::vector<std::thread> threads;
   int rows_per_thread = (N + num_threads - 1) / num_threads;
 
@@ -87,7 +81,6 @@ C22ProfileResult c22_profile_selfjoin_cpu(const std::vector<double>& timeseries,
             int best_j = -1;
 
             for (int j = 0; j < N; ++j) {
-              // Skip if within exclusion zone
               int diff = (i > j) ? (i - j) : (j - i);
               if (diff <= exclusion) continue;
 
@@ -126,24 +119,20 @@ C22ProfileResult c22_profile_abjoin_cpu(const std::vector<double>& timeseries_a,
     return C22ProfileResult();
   }
 
-  // Auto-detect threads
   if (num_threads <= 0) {
     num_threads = static_cast<int>(std::thread::hardware_concurrency());
     if (num_threads <= 0) num_threads = 1;
   }
 
-  // ---- Step 1: Compute C22 feature vectors ----
   std::vector<C22FeatureVector> features_a =
       compute_c22_vectors_parallel(timeseries_a, window_size, num_threads);
   std::vector<C22FeatureVector> features_b =
       compute_c22_vectors_parallel(timeseries_b, window_size, num_threads);
 
-  // Flatten for cache-friendly access
   const int D = C22FeatureVector::NUM_FEATURES;
   std::vector<double> FA = flatten_features(features_a);
   std::vector<double> FB = flatten_features(features_b);
 
-  // ---- Step 2: For each subsequence in A, find max dot product in B ----
   std::vector<double> profile(NA, -std::numeric_limits<double>::infinity());
   std::vector<int> index(NA, -1);
 

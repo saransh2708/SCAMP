@@ -7,7 +7,7 @@ NOTE: This script is intended to be run on your LOCAL machine after pulling
 the JSON results from the remote GPU host via git. It requires matplotlib.
 
 Usage:
-    python3 test/plot_benchmark_results.py [--input benchmark_results_datasets.json] [--output-dir plots/]
+    python3 test/c22/plot_benchmark_results.py [--input benchmark_results_datasets.json] [--output-dir plots/]
 """
 
 import sys
@@ -30,9 +30,14 @@ except ImportError:
 
 
 def load_results(json_path):
-    """Load benchmark results from JSON file."""
-    with open(json_path, 'r') as f:
-        return json.load(f)
+    """Load benchmark results from JSON file or stdin."""
+    if json_path == '-' or json_path == '/dev/stdin':
+        # Read from stdin
+        return json.load(sys.stdin)
+    else:
+        # Read from file
+        with open(json_path, 'r') as f:
+            return json.load(f)
 
 
 def plot_performance_comparison(results, output_dir):

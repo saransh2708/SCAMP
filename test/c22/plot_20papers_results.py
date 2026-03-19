@@ -4,7 +4,7 @@ Plot comprehensive benchmark results from benchmark_20papers_full.json.
 Generates PPT-style charts (slides 9-11 equivalent) using real 20Papers data.
 
 Run on LOCAL machine (no GPU/pyscamp needed — only matplotlib + numpy):
-  python3 test/plot_20papers_results.py [-i benchmark_20papers_full.json] [-o output_dir/]
+  python3 test/c22/plot_20papers_results.py [-i benchmark_20papers_full.json] [-o output_dir/]
 """
 
 import sys

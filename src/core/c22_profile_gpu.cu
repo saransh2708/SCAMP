@@ -7,10 +7,7 @@
 
 #include <vector>
 
-// Number of catch22 features
 #define C22_NUM_FEATURES 22
-
-// Declared in c22_features_gpu.cu (compiled into the same library)
 #define C22_GPU_BLOCK_SIZE 64
 #define C22_GPU_MAX_W 256
 __global__ void c22_compute_features_kernel(const double* __restrict__, int,
@@ -25,7 +22,6 @@ __global__ void c22_compute_features_kernel(const double* __restrict__, int,
 #define TILE_R 32
 #define TILE_C 32
 
-// CUDA error checking macro (matches SCAMP's gpuErrchk pattern)
 #define C22_CUDA_CHECK(ans)                     \
   {                                             \
     c22_cuda_assert((ans), __FILE__, __LINE__); \
@@ -129,14 +125,12 @@ __global__ void c22_tiled_selfjoin_kernel(
   const int row = blockIdx.y * TILE_R + ty;
   const int col = blockIdx.x * TILE_C + tx;
 
-  // ---- Cooperative load: row vectors ----
   {
     int load_row = blockIdx.y * TILE_R + ty;
     for (int f = tx; f < C22_NUM_FEATURES; f += TILE_C)
       sh_row[ty][f] = (load_row < N) ? F[load_row * C22_NUM_FEATURES + f] : 0.0;
   }
 
-  // ---- Cooperative load: column vectors ----
   {
     int load_col = blockIdx.x * TILE_C + tx;
     for (int f = ty; f < C22_NUM_FEATURES; f += TILE_R)
@@ -145,7 +139,6 @@ __global__ void c22_tiled_selfjoin_kernel(
 
   __syncthreads();
 
-  // ---- Compute dot product and atomically update packed[row] ----
   if (row < N && col < N) {
     int diff = (row > col) ? (row - col) : (col - row);
     if (diff > exclusion) {
@@ -153,7 +146,6 @@ __global__ void c22_tiled_selfjoin_kernel(
       for (int f = 0; f < C22_NUM_FEATURES; ++f)
         dot += sh_row[ty][f] * sh_col[tx][f];
 
-      // Single atomic: (float_dot, col) → atomically wins if dot is largest
       atomicMax(&packed[row], pack_dot_idx((float)dot, col));
     }
   }
@@ -242,7 +234,6 @@ void c22_profile_selfjoin_gpu_launch(const double* h_features,
   C22_CUDA_CHECK(cudaMalloc(&d_profile, prof_bytes));
   C22_CUDA_CHECK(cudaMalloc(&d_index, idx_bytes));
 
-  // Initialise packed[] with sentinel so any real dot product wins atomicMax
   {
     unsigned long long s = sentinel_packed();
     std::vector<unsigned long long> init(N, s);
@@ -253,7 +244,6 @@ void c22_profile_selfjoin_gpu_launch(const double* h_features,
   C22_CUDA_CHECK(
       cudaMemcpy(d_features, h_features, feat_bytes, cudaMemcpyHostToDevice));
 
-  // Phase 1: tiled dot-product kernel — fills d_packed atomically
   dim3 block(TILE_C, TILE_R);
   dim3 grid((N + TILE_C - 1) / TILE_C, (N + TILE_R - 1) / TILE_R);
   c22_tiled_selfjoin_kernel<<<grid, block>>>(d_features, d_packed, N,
@@ -261,7 +251,6 @@ void c22_profile_selfjoin_gpu_launch(const double* h_features,
   C22_CUDA_CHECK(cudaGetLastError());
   C22_CUDA_CHECK(cudaDeviceSynchronize());
 
-  // Decode packed → d_index (CPU-side, O(N))
   {
     std::vector<unsigned long long> h_packed(N);
     C22_CUDA_CHECK(cudaMemcpy(h_packed.data(), d_packed, packed_bytes,
@@ -271,11 +260,9 @@ void c22_profile_selfjoin_gpu_launch(const double* h_features,
       h_idx[i] = (int)(unsigned int)(h_packed[i] & 0xFFFFFFFFULL);
     C22_CUDA_CHECK(
         cudaMemcpy(d_index, h_idx.data(), idx_bytes, cudaMemcpyHostToDevice));
-    // Also copy h_idx to output now; profile recomputed next
     std::copy(h_idx.begin(), h_idx.end(), h_index);
   }
 
-  // Phase 2: recompute exact double profile from winning indices
   {
     int threads = 256;
     int blocks = (N + threads - 1) / threads;
@@ -336,7 +323,6 @@ void c22_profile_abjoin_gpu_launch(const double* h_features_a,
   C22_CUDA_CHECK(cudaGetLastError());
   C22_CUDA_CHECK(cudaDeviceSynchronize());
 
-  // Decode packed → d_index
   {
     std::vector<unsigned long long> h_packed(NA);
     C22_CUDA_CHECK(cudaMemcpy(h_packed.data(), d_packed, packed_bytes,
@@ -349,7 +335,6 @@ void c22_profile_abjoin_gpu_launch(const double* h_features_a,
     std::copy(h_idx.begin(), h_idx.end(), h_index);
   }
 
-  // Recompute exact double profile
   {
     int threads = 256;
     int blocks = (NA + threads - 1) / threads;
@@ -379,7 +364,6 @@ void c22_profile_selfjoin_gpu_launch_from_ts(const double* h_ts, int ts_length,
                                              int* h_index, int N, int exclusion,
                                              int gpu_id) {
   C22_CUDA_CHECK(cudaSetDevice(gpu_id));
-  // 128 KB stack: actual kernel usage is ~58 KB (DN_OutlierInclude dominates)
   C22_CUDA_CHECK(cudaDeviceSetLimit(cudaLimitStackSize, 128 * 1024));
 
   size_t ts_bytes = (size_t)ts_length * sizeof(double);
@@ -402,7 +386,6 @@ void c22_profile_selfjoin_gpu_launch_from_ts(const double* h_ts, int ts_length,
 
   C22_CUDA_CHECK(cudaMemcpy(d_ts, h_ts, ts_bytes, cudaMemcpyHostToDevice));
 
-  // Phase 1a: compute all N×22 features entirely on GPU
   {
     int blk = C22_GPU_BLOCK_SIZE;
     int grid = (N + blk - 1) / blk;
@@ -412,7 +395,6 @@ void c22_profile_selfjoin_gpu_launch_from_ts(const double* h_ts, int ts_length,
     C22_CUDA_CHECK(cudaDeviceSynchronize());
   }
 
-  // Phase 1b: initialise packed sentinel
   {
     unsigned long long s = sentinel_packed();
     std::vector<unsigned long long> init(N, s);
@@ -420,7 +402,6 @@ void c22_profile_selfjoin_gpu_launch_from_ts(const double* h_ts, int ts_length,
         cudaMemcpy(d_packed, init.data(), pack_bytes, cudaMemcpyHostToDevice));
   }
 
-  // Phase 2: tiled dot-product kernel
   {
     dim3 block(TILE_C, TILE_R);
     dim3 grid((N + TILE_C - 1) / TILE_C, (N + TILE_R - 1) / TILE_R);
@@ -430,7 +411,6 @@ void c22_profile_selfjoin_gpu_launch_from_ts(const double* h_ts, int ts_length,
     C22_CUDA_CHECK(cudaDeviceSynchronize());
   }
 
-  // Phase 3: decode packed → d_index (O(N) on host)
   {
     std::vector<unsigned long long> h_packed(N);
     C22_CUDA_CHECK(cudaMemcpy(h_packed.data(), d_packed, pack_bytes,
@@ -443,7 +423,6 @@ void c22_profile_selfjoin_gpu_launch_from_ts(const double* h_ts, int ts_length,
     std::copy(h_idx.begin(), h_idx.end(), h_index);
   }
 
-  // Phase 4: exact double-precision profile recompute
   {
     int thd = 256, blk = (N + thd - 1) / thd;
     c22_recompute_profile_kernel<<<blk, thd>>>(d_features, d_index, d_profile,
@@ -468,7 +447,6 @@ void c22_profile_abjoin_gpu_launch_from_ts(const double* h_ts_a,
                                            double* h_profile, int* h_index,
                                            int NA, int NB, int gpu_id) {
   C22_CUDA_CHECK(cudaSetDevice(gpu_id));
-  // 128 KB stack: actual kernel usage is ~58 KB (DN_OutlierInclude dominates)
   C22_CUDA_CHECK(cudaDeviceSetLimit(cudaLimitStackSize, 128 * 1024));
 
   size_t ts_a_bytes = (size_t)ts_a_length * sizeof(double);
@@ -500,7 +478,6 @@ void c22_profile_abjoin_gpu_launch_from_ts(const double* h_ts_a,
   C22_CUDA_CHECK(
       cudaMemcpy(d_ts_b, h_ts_b, ts_b_bytes, cudaMemcpyHostToDevice));
 
-  // Compute features for both timeseries on GPU
   {
     int blk = C22_GPU_BLOCK_SIZE;
     c22_compute_features_kernel<<<(NA + blk - 1) / blk, blk>>>(
@@ -512,7 +489,6 @@ void c22_profile_abjoin_gpu_launch_from_ts(const double* h_ts_a,
     C22_CUDA_CHECK(cudaDeviceSynchronize());
   }
 
-  // Initialise packed sentinel
   {
     unsigned long long s = sentinel_packed();
     std::vector<unsigned long long> init(NA, s);
@@ -520,7 +496,6 @@ void c22_profile_abjoin_gpu_launch_from_ts(const double* h_ts_a,
         cudaMemcpy(d_packed, init.data(), pack_bytes, cudaMemcpyHostToDevice));
   }
 
-  // Tiled AB-join dot product
   {
     dim3 block(TILE_C, TILE_R);
     dim3 grid((NB + TILE_C - 1) / TILE_C, (NA + TILE_R - 1) / TILE_R);
@@ -530,7 +505,6 @@ void c22_profile_abjoin_gpu_launch_from_ts(const double* h_ts_a,
     C22_CUDA_CHECK(cudaDeviceSynchronize());
   }
 
-  // Decode packed → d_index
   {
     std::vector<unsigned long long> h_packed(NA);
     C22_CUDA_CHECK(cudaMemcpy(h_packed.data(), d_packed, pack_bytes,
@@ -543,7 +517,6 @@ void c22_profile_abjoin_gpu_launch_from_ts(const double* h_ts_a,
     std::copy(h_idx.begin(), h_idx.end(), h_index);
   }
 
-  // Exact double profile recompute
   {
     int thd = 256, blk = (NA + thd - 1) / thd;
     c22_recompute_abjoin_profile_kernel<<<blk, thd>>>(d_feat_a, d_feat_b,

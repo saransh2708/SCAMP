@@ -7,10 +7,10 @@ Output format (one line per subsequence):
 
 Usage:
   # CPU only:
-  PYTHONPATH=build/src/python python3 test/run_c22_sample_inputs.py
+  PYTHONPATH=build/src/python python3 test/c22/run_c22_sample_inputs.py
 
   # With GPU (on cerebro):
-  PYTHONPATH=build/src/python python3 test/run_c22_sample_inputs.py --gpu
+  PYTHONPATH=build/src/python python3 test/c22/run_c22_sample_inputs.py --gpu
 """
 
 import sys
@@ -52,7 +52,7 @@ print()
 # Input / output directories
 # ---------------------------------------------------------------------------
 script_dir = os.path.dirname(os.path.abspath(__file__))
-input_dir  = os.path.join(script_dir, "SampleInput")
+input_dir  = os.path.join(script_dir, "..", "SampleInput")
 output_dir = os.path.join(script_dir, "SampleOutputC22")
 os.makedirs(output_dir, exist_ok=True)
 

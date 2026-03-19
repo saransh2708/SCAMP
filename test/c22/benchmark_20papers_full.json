@@ -1,0 +1,1610 @@
+{
+  "config": {
+    "window_size": 100,
+    "cpu_threads": 16,
+    "gpu_enabled": true,
+    "gpu_supported": true,
+    "repeat": 3,
+    "n_datasets": 22,
+    "timestamp": "2026-03-09 20:35:20"
+  },
+  "per_dataset": [
+    {
+      "dataset": "051_UCR_Anomaly_DISTORTEDTkeepSecondMARS_3500_9330_9340",
+      "series_length": 7888,
+      "window_size": 100,
+      "n_subsequences": 7789,
+      "c22_cpu": {
+        "time_s": 0.30089760292321444,
+        "throughput_mpairs_s": 201.6251389529411
+      },
+      "c22_gpu": {
+        "time_s": 0.06881953030824661,
+        "throughput_mpairs_s": 881.5596492487267
+      },
+      "c22_gpu_speedup": 4.372270510645406,
+      "mp_cpu": {
+        "time_s": 0.006171726621687412,
+        "throughput_mpairs_s": 9830.072639123573
+      },
+      "mp_gpu": {
+        "time_s": 0.030659634619951248,
+        "throughput_mpairs_s": 1978.7750817004508
+      },
+      "mp_gpu_speedup": 0.20129811389439273,
+      "profile_correlation": 0.09642822298276195,
+      "anomaly_detection": {
+        "has_labels": true,
+        "n_anomaly_points": 98,
+        "top_k": 5,
+        "tolerance": 100,
+        "mp_discord_indices": [
+          5822,
+          5741,
+          5796,
+          5770,
+          2122
+        ],
+        "c22_discord_indices": [
+          861,
+          5483,
+          2137,
+          5385,
+          6558
+        ],
+        "mp_hits": 4,
+        "c22_hits": 0,
+        "mp_precision_at_k": 0.8,
+        "c22_precision_at_k": 0.0
+      },
+      "motif_info": {
+        "c22_top_motif_idx": 802,
+        "c22_top_motif_match": 1590,
+        "c22_top_motif_dot": 13082.043736573309,
+        "c22_motif_pair_pearson_r": 0.9964541013634218,
+        "mp_top_motif_idx": 3771,
+        "mp_top_motif_match": 7786,
+        "mp_top_motif_distance": 0.47520710009487926,
+        "mp_motif_pair_pearson_r": 0.9988708910600964
+      }
+    },
+    {
+      "dataset": "140_UCR_Anomaly_InternalBleeding4_1000_4675_5033",
+      "series_length": 6321,
+      "window_size": 100,
+      "n_subsequences": 6222,
+      "c22_cpu": {
+        "time_s": 0.23248914629220963,
+        "throughput_mpairs_s": 166.51652181363454
+      },
+      "c22_gpu": {
+        "time_s": 0.06992308050394058,
+        "throughput_mpairs_s": 553.6552983791707
+      },
+      "c22_gpu_speedup": 3.324927114432658,
+      "mp_cpu": {
+        "time_s": 0.0046563828364014626,
+        "throughput_mpairs_s": 8314.025147880307
+      },
+      "mp_gpu": {
+        "time_s": 0.005275811068713665,
+        "throughput_mpairs_s": 7337.882933218641
+      },
+      "mp_gpu_speedup": 0.8825908994380972,
+      "profile_correlation": 0.14176806432042438,
+      "anomaly_detection": {
+        "has_labels": true,
+        "n_anomaly_points": 356,
+        "top_k": 5,
+        "tolerance": 100,
+        "mp_discord_indices": [
+          3697,
+          3723,
+          3659,
+          3749,
+          3779
+        ],
+        "c22_discord_indices": [
+          3400,
+          4279,
+          5349,
+          2344,
+          924
+        ],
+        "mp_hits": 5,
+        "c22_hits": 0,
+        "mp_precision_at_k": 1.0,
+        "c22_precision_at_k": 0.0
+      },
+      "motif_info": {
+        "c22_top_motif_idx": 5827,
+        "c22_top_motif_match": 6010,
+        "c22_top_motif_dot": 13306.332493214006,
+        "c22_motif_pair_pearson_r": 0.9984804746151121,
+        "mp_top_motif_idx": 1671,
+        "mp_top_motif_match": 5924,
+        "mp_top_motif_distance": 0.08513102659022712,
+        "mp_motif_pair_pearson_r": 0.9999637635415577
+      }
+    },
+    {
+      "dataset": "144_UCR_Anomaly_InternalBleeding9_4200_6599_6681",
+      "series_length": 3301,
+      "window_size": 100,
+      "n_subsequences": 3202,
+      "c22_cpu": {
+        "time_s": 0.11380076687783003,
+        "throughput_mpairs_s": 90.09433135900413
+      },
+      "c22_gpu": {
+        "time_s": 0.030166947282850742,
+        "throughput_mpairs_s": 339.86879427566396
+      },
+      "c22_gpu_speedup": 3.7723660206919014,
+      "mp_cpu": {
+        "time_s": 0.002066311426460743,
+        "throughput_mpairs_s": 4961.88709441606
+      },
+      "mp_gpu": {
+        "time_s": 0.0024940669536590576,
+        "throughput_mpairs_s": 4110.877610947076
+      },
+      "mp_gpu_speedup": 0.8284907602136533,
+      "profile_correlation": -0.35249825080812913,
+      "anomaly_detection": {
+        "has_labels": true,
+        "n_anomaly_points": 120,
+        "top_k": 5,
+        "tolerance": 100,
+        "mp_discord_indices": [
+          2402,
+          2345,
+          3130,
+          1551,
+          2960
+        ],
+        "c22_discord_indices": [
+          3151,
+          1035,
+          861,
+          154,
+          2617
+        ],
+        "mp_hits": 2,
+        "c22_hits": 0,
+        "mp_precision_at_k": 0.4,
+        "c22_precision_at_k": 0.0
+      },
+      "motif_info": {
+        "c22_top_motif_idx": 2387,
+        "c22_top_motif_match": 2413,
+        "c22_top_motif_dot": 15602.242225649286,
+        "c22_motif_pair_pearson_r": 0.9575160339905999,
+        "mp_top_motif_idx": 180,
+        "mp_top_motif_match": 2469,
+        "mp_top_motif_distance": 0.12886857078914382,
+        "mp_motif_pair_pearson_r": 0.9999169644573134
+      }
+    },
+    {
+      "dataset": "162_UCR_Anomaly_WalkingAceleration5_2700_5920_5979",
+      "series_length": 3984,
+      "window_size": 100,
+      "n_subsequences": 3885,
+      "c22_cpu": {
+        "time_s": 0.14504096284508705,
+        "throughput_mpairs_s": 104.06180918779835
+      },
+      "c22_gpu": {
+        "time_s": 0.03394961357116699,
+        "throughput_mpairs_s": 444.5772252565048
+      },
+      "c22_gpu_speedup": 4.272241937041328,
+      "mp_cpu": {
+        "time_s": 0.002598760649561882,
+        "throughput_mpairs_s": 5807.854987547439
+      },
+      "mp_gpu": {
+        "time_s": 0.0029256464913487434,
+        "throughput_mpairs_s": 5158.936681048543
+      },
+      "mp_gpu_speedup": 0.8882688517722575,
+      "profile_correlation": -0.2803212584399704,
+      "anomaly_detection": {
+        "has_labels": true,
+        "n_anomaly_points": 97,
+        "top_k": 5,
+        "tolerance": 100,
+        "mp_discord_indices": [
+          3029,
+          3239,
+          1317,
+          3176,
+          3003
+        ],
+        "c22_discord_indices": [
+          3204,
+          3464,
+          3124,
+          3039,
+          2977
+        ],
+        "mp_hits": 2,
+        "c22_hits": 2,
+        "mp_precision_at_k": 0.4,
+        "c22_precision_at_k": 0.4
+      },
+      "motif_info": {
+        "c22_top_motif_idx": 3222,
+        "c22_top_motif_match": 3250,
+        "c22_top_motif_dot": 6400.75350608487,
+        "c22_motif_pair_pearson_r": 0.27473567156104484,
+        "mp_top_motif_idx": 236,
+        "mp_top_motif_match": 2835,
+        "mp_top_motif_distance": 1.8707609719333675,
+        "mp_motif_pair_pearson_r": 0.9825012669294547
+      }
+    },
+    {
+      "dataset": "AIOps",
+      "series_length": 27000,
+      "window_size": 100,
+      "n_subsequences": 26901,
+      "c22_cpu": {
+        "time_s": 1.4828765047714114,
+        "throughput_mpairs_s": 488.0135322607693
+      },
+      "c22_gpu": {
+        "time_s": 0.587467173114419,
+        "throughput_mpairs_s": 1231.8370014847699
+      },
+      "c22_gpu_speedup": 2.5241861547940427,
+      "mp_cpu": {
+        "time_s": 0.04871108755469322,
+        "throughput_mpairs_s": 14856.243974997768
+      },
+      "mp_gpu": {
+        "time_s": 0.04838327504694462,
+        "throughput_mpairs_s": 14956.899885298259
+      },
+      "mp_gpu_speedup": 1.0067753269581388,
+      "profile_correlation": 0.7772692896637463,
+      "anomaly_detection": {
+        "has_labels": true,
+        "n_anomaly_points": 141,
+        "top_k": 5,
+        "tolerance": 100,
+        "mp_discord_indices": [
+          1158,
+          9753,
+          6898,
+          19677,
+          7629
+        ],
+        "c22_discord_indices": [
+          3346,
+          16128,
+          12700,
+          9656,
+          4738
+        ],
+        "mp_hits": 0,
+        "c22_hits": 0,
+        "mp_precision_at_k": 0.0,
+        "c22_precision_at_k": 0.0
+      },
+      "motif_info": {
+        "c22_top_motif_idx": 5700,
+        "c22_top_motif_match": 12292,
+        "c22_top_motif_dot": 7185.8772234080625,
+        "c22_motif_pair_pearson_r": -0.8504965164401864,
+        "mp_top_motif_idx": 8000,
+        "mp_top_motif_match": 9403,
+        "mp_top_motif_distance": 3.1645551834715833,
+        "mp_motif_pair_pearson_r": 0.9499279524538161
+      }
+    },
+    {
+      "dataset": "AIOps_2",
+      "series_length": 3000,
+      "window_size": 100,
+      "n_subsequences": 2901,
+      "c22_cpu": {
+        "time_s": 0.10891985148191452,
+        "throughput_mpairs_s": 77.26599775429727
+      },
+      "c22_gpu": {
+        "time_s": 0.05101676844060421,
+        "throughput_mpairs_s": 164.96146771424804
+      },
+      "c22_gpu_speedup": 2.1349813955527863,
+      "mp_cpu": {
+        "time_s": 0.0018439684063196182,
+        "throughput_mpairs_s": 4563.961601054283
+      },
+      "mp_gpu": {
+        "time_s": 0.0021493323147296906,
+        "throughput_mpairs_s": 3915.54202313215
+      },
+      "mp_gpu_speedup": 0.8579261539421482,
+      "profile_correlation": 0.6128468763333521,
+      "anomaly_detection": {
+        "has_labels": true,
+        "n_anomaly_points": 21,
+        "top_k": 5,
+        "tolerance": 100,
+        "mp_discord_indices": [
+          228,
+          2650,
+          201,
+          2171,
+          1693
+        ],
+        "c22_discord_indices": [
+          2656,
+          914,
+          1639,
+          384,
+          748
+        ],
+        "mp_hits": 0,
+        "c22_hits": 0,
+        "mp_precision_at_k": 0.0,
+        "c22_precision_at_k": 0.0
+      },
+      "motif_info": {
+        "c22_top_motif_idx": 1121,
+        "c22_top_motif_match": 1155,
+        "c22_top_motif_dot": 3261.5326557408603,
+        "c22_motif_pair_pearson_r": 0.384391971688658,
+        "mp_top_motif_idx": 457,
+        "mp_top_motif_match": 1942,
+        "mp_top_motif_distance": 7.072410389911247,
+        "mp_motif_pair_pearson_r": 0.7499050563833769
+      }
+    },
+    {
+      "dataset": "Damp ECG 60 Seconds",
+      "series_length": 15000,
+      "window_size": 100,
+      "n_subsequences": 14901,
+      "c22_cpu": {
+        "time_s": 0.734866856597364,
+        "throughput_mpairs_s": 302.1497010058468
+      },
+      "c22_gpu": {
+        "time_s": 0.27009947784245014,
+        "throughput_mpairs_s": 822.0667539739433
+      },
+      "c22_gpu_speedup": 2.7207266836184485,
+      "mp_cpu": {
+        "time_s": 0.017000223509967327,
+        "throughput_mpairs_s": 13060.993043404213
+      },
+      "mp_gpu": {
+        "time_s": 0.017434915527701378,
+        "throughput_mpairs_s": 12735.352841097118
+      },
+      "mp_gpu_speedup": 0.975067730208191,
+      "profile_correlation": -0.3065375231356004,
+      "anomaly_detection": {
+        "has_labels": true,
+        "n_anomaly_points": 245,
+        "top_k": 5,
+        "tolerance": 100,
+        "mp_discord_indices": [
+          9296,
+          9332,
+          9358,
+          9384,
+          7467
+        ],
+        "c22_discord_indices": [
+          5022,
+          14046,
+          3495,
+          7474,
+          14199
+        ],
+        "mp_hits": 4,
+        "c22_hits": 0,
+        "mp_precision_at_k": 0.8,
+        "c22_precision_at_k": 0.0
+      },
+      "motif_info": {
+        "c22_top_motif_idx": 7274,
+        "c22_top_motif_match": 10639,
+        "c22_top_motif_dot": 8143.596875797006,
+        "c22_motif_pair_pearson_r": 0.9858406171600951,
+        "mp_top_motif_idx": 12612,
+        "mp_top_motif_match": 14448,
+        "mp_top_motif_distance": 0.2681277813113118,
+        "mp_motif_pair_pearson_r": 0.9996405374644443
+      }
+    },
+    {
+      "dataset": "HAI_test1_36",
+      "series_length": 20000,
+      "window_size": 100,
+      "n_subsequences": 19901,
+      "c22_cpu": {
+        "time_s": 1.2302931165322661,
+        "throughput_mpairs_s": 321.91499381571407
+      },
+      "c22_gpu": {
+        "time_s": 0.557938301935792,
+        "throughput_mpairs_s": 709.8451560430382
+      },
+      "c22_gpu_speedup": 2.2050701883410926,
+      "mp_cpu": {
+        "time_s": 0.027524074539542198,
+        "throughput_mpairs_s": 14389.214083511468
+      },
+      "mp_gpu": {
+        "time_s": 0.027997026219964027,
+        "throughput_mpairs_s": 14146.138160830315
+      },
+      "mp_gpu_speedup": 0.9831070744190474,
+      "profile_correlation": 0.42250505138861494,
+      "anomaly_detection": {
+        "has_labels": true,
+        "n_anomaly_points": 383,
+        "top_k": 5,
+        "tolerance": 100,
+        "mp_discord_indices": [
+          7581,
+          554,
+          3839,
+          11186,
+          13490
+        ],
+        "c22_discord_indices": [
+          7703,
+          7744,
+          912,
+          18567,
+          15460
+        ],
+        "mp_hits": 0,
+        "c22_hits": 0,
+        "mp_precision_at_k": 0.0,
+        "c22_precision_at_k": 0.0
+      },
+      "motif_info": {
+        "c22_top_motif_idx": 8936,
+        "c22_top_motif_match": 9361,
+        "c22_top_motif_dot": 9219.784993900474,
+        "c22_motif_pair_pearson_r": -0.08052349530566075,
+        "mp_top_motif_idx": 9068,
+        "mp_top_motif_match": 9362,
+        "mp_top_motif_distance": 4.027920289153315,
+        "mp_motif_pair_pearson_r": 0.9188792907211379
+      }
+    },
+    {
+      "dataset": "HAI_test2_57",
+      "series_length": 17000,
+      "window_size": 100,
+      "n_subsequences": 16901,
+      "c22_cpu": {
+        "time_s": 0.9290290381759405,
+        "throughput_mpairs_s": 307.4648792042434
+      },
+      "c22_gpu": {
+        "time_s": 0.8685346813872457,
+        "throughput_mpairs_s": 328.88013239006466
+      },
+      "c22_gpu_speedup": 1.069651054914781,
+      "mp_cpu": {
+        "time_s": 0.021887803450226784,
+        "throughput_mpairs_s": 13050.363945818435
+      },
+      "mp_gpu": {
+        "time_s": 0.022368421778082848,
+        "throughput_mpairs_s": 12769.95774819845
+      },
+      "mp_gpu_speedup": 0.9785135342750473,
+      "profile_correlation": 0.6161513481624966,
+      "anomaly_detection": {
+        "has_labels": true,
+        "n_anomaly_points": 1481,
+        "top_k": 5,
+        "tolerance": 100,
+        "mp_discord_indices": [
+          6763,
+          13819,
+          13785,
+          6122,
+          13881
+        ],
+        "c22_discord_indices": [
+          16208,
+          16088,
+          13933,
+          16253,
+          5578
+        ],
+        "mp_hits": 0,
+        "c22_hits": 0,
+        "mp_precision_at_k": 0.0,
+        "c22_precision_at_k": 0.0
+      },
+      "motif_info": {
+        "c22_top_motif_idx": 590,
+        "c22_top_motif_match": 833,
+        "c22_top_motif_dot": 21314.05093297453,
+        "c22_motif_pair_pearson_r": 1.0,
+        "mp_top_motif_idx": 267,
+        "mp_top_motif_match": 778,
+        "mp_top_motif_distance": 0.0,
+        "mp_motif_pair_pearson_r": 0.9999999999999927
+      }
+    },
+    {
+      "dataset": "MGAB",
+      "series_length": 6100,
+      "window_size": 100,
+      "n_subsequences": 6001,
+      "c22_cpu": {
+        "time_s": 0.2932088617235422,
+        "throughput_mpairs_s": 122.82030218429969
+      },
+      "c22_gpu": {
+        "time_s": 0.05504501983523369,
+        "throughput_mpairs_s": 654.2281410342799
+      },
+      "c22_gpu_speedup": 5.326710074793407,
+      "mp_cpu": {
+        "time_s": 0.004454975947737694,
+        "throughput_mpairs_s": 8083.545550518057
+      },
+      "mp_gpu": {
+        "time_s": 0.005240396596491337,
+        "throughput_mpairs_s": 6871.999158252933
+      },
+      "mp_gpu_speedup": 0.8501219069412581,
+      "profile_correlation": 0.10195734987093857,
+      "anomaly_detection": {
+        "has_labels": true,
+        "n_anomaly_points": 439,
+        "top_k": 5,
+        "tolerance": 100,
+        "mp_discord_indices": [
+          3615,
+          3589,
+          3641,
+          2065,
+          2039
+        ],
+        "c22_discord_indices": [
+          538,
+          2938,
+          3711,
+          1410,
+          4837
+        ],
+        "mp_hits": 3,
+        "c22_hits": 1,
+        "mp_precision_at_k": 0.6,
+        "c22_precision_at_k": 0.2
+      },
+      "motif_info": {
+        "c22_top_motif_idx": 1510,
+        "c22_top_motif_match": 2376,
+        "c22_top_motif_dot": 4068.246733602183,
+        "c22_motif_pair_pearson_r": 0.9688837886648889,
+        "mp_top_motif_idx": 62,
+        "mp_top_motif_match": 622,
+        "mp_top_motif_distance": 0.21558761211081612,
+        "mp_motif_pair_pearson_r": 0.999767609907522
+      }
+    },
+    {
+      "dataset": "MSCRED",
+      "series_length": 5000,
+      "window_size": 100,
+      "n_subsequences": 4901,
+      "c22_cpu": {
+        "time_s": 0.2393833016976714,
+        "throughput_mpairs_s": 100.34033631274646
+      },
+      "c22_gpu": {
+        "time_s": 0.048002141527831554,
+        "throughput_mpairs_s": 500.3901958431034
+      },
+      "c22_gpu_speedup": 4.986929626022568,
+      "mp_cpu": {
+        "time_s": 0.0034265676513314247,
+        "throughput_mpairs_s": 7009.872106469832
+      },
+      "mp_gpu": {
+        "time_s": 0.003939620219171047,
+        "throughput_mpairs_s": 6096.983887714464
+      },
+      "mp_gpu_speedup": 0.8697710593160738,
+      "profile_correlation": 0.836731511918132,
+      "anomaly_detection": {
+        "has_labels": true,
+        "n_anomaly_points": 198,
+        "top_k": 5,
+        "tolerance": 100,
+        "mp_discord_indices": [
+          3912,
+          3140,
+          4171,
+          821,
+          4044
+        ],
+        "c22_discord_indices": [
+          4817,
+          4297,
+          4160,
+          2765,
+          4189
+        ],
+        "mp_hits": 0,
+        "c22_hits": 0,
+        "mp_precision_at_k": 0.0,
+        "c22_precision_at_k": 0.0
+      },
+      "motif_info": {
+        "c22_top_motif_idx": 3601,
+        "c22_top_motif_match": 4731,
+        "c22_top_motif_dot": 3700.182660215317,
+        "c22_motif_pair_pearson_r": -0.8093870622747683,
+        "mp_top_motif_idx": 239,
+        "mp_top_motif_match": 3583,
+        "mp_top_motif_distance": 4.565231802695859,
+        "mp_motif_pair_pearson_r": 0.8957932929382716
+      }
+    },
+    {
+      "dataset": "NewyorkTaxi",
+      "series_length": 5000,
+      "window_size": 100,
+      "n_subsequences": 4901,
+      "c22_cpu": {
+        "time_s": 0.23359072301536798,
+        "throughput_mpairs_s": 102.8285742256114
+      },
+      "c22_gpu": {
+        "time_s": 0.043320849537849426,
+        "throughput_mpairs_s": 554.4628338604924
+      },
+      "c22_gpu_speedup": 5.392108546054245,
+      "mp_cpu": {
+        "time_s": 0.0034249117597937584,
+        "throughput_mpairs_s": 7013.26127054626
+      },
+      "mp_gpu": {
+        "time_s": 0.00386684387922287,
+        "throughput_mpairs_s": 6211.732811107782
+      },
+      "mp_gpu_speedup": 0.8857124483862204,
+      "profile_correlation": -0.12000615649784815,
+      "anomaly_detection": {
+        "has_labels": true,
+        "n_anomaly_points": 675,
+        "top_k": 5,
+        "tolerance": 100,
+        "mp_discord_indices": [
+          4780,
+          4748,
+          4837,
+          1900,
+          1868
+        ],
+        "c22_discord_indices": [
+          3963,
+          1707,
+          3920,
+          1900,
+          935
+        ],
+        "mp_hits": 5,
+        "c22_hits": 1,
+        "mp_precision_at_k": 1.0,
+        "c22_precision_at_k": 0.2
+      },
+      "motif_info": {
+        "c22_top_motif_idx": 3109,
+        "c22_top_motif_match": 4454,
+        "c22_top_motif_dot": 3439.137607249117,
+        "c22_motif_pair_pearson_r": 0.9368398923182589,
+        "mp_top_motif_idx": 443,
+        "mp_top_motif_match": 779,
+        "mp_top_motif_distance": 0.6016432325476314,
+        "mp_motif_pair_pearson_r": 0.9981901271036487
+      }
+    },
+    {
+      "dataset": "PV_System",
+      "series_length": 1510,
+      "window_size": 100,
+      "n_subsequences": 1411,
+      "c22_cpu": {
+        "time_s": 0.06067801173776388,
+        "throughput_mpairs_s": 32.81124319966668
+      },
+      "c22_gpu": {
+        "time_s": 0.28308480232954025,
+        "throughput_mpairs_s": 7.032949079627243
+      },
+      "c22_gpu_speedup": 0.21434570573353615,
+      "mp_cpu": {
+        "time_s": 0.0007101334631443024,
+        "throughput_mpairs_s": 2803.5870766949565
+      },
+      "mp_gpu": {
+        "time_s": 0.0009859036654233932,
+        "throughput_mpairs_s": 2019.3869541452666
+      },
+      "mp_gpu_speedup": 0.7202868678242896,
+      "profile_correlation": 0.6795065584797397,
+      "anomaly_detection": {
+        "has_labels": true,
+        "n_anomaly_points": 236,
+        "top_k": 5,
+        "tolerance": 100,
+        "mp_discord_indices": [
+          1085,
+          418,
+          1156,
+          488,
+          458
+        ],
+        "c22_discord_indices": [
+          395,
+          324,
+          437,
+          798,
+          494
+        ],
+        "mp_hits": 5,
+        "c22_hits": 3,
+        "mp_precision_at_k": 1.0,
+        "c22_precision_at_k": 0.6
+      },
+      "motif_info": {
+        "c22_top_motif_idx": 526,
+        "c22_top_motif_match": 868,
+        "c22_top_motif_dot": 6563.722651244184,
+        "c22_motif_pair_pearson_r": -0.5993656002856094,
+        "mp_top_motif_idx": 33,
+        "mp_top_motif_match": 990,
+        "mp_top_motif_distance": 2.3999348880664675,
+        "mp_motif_pair_pearson_r": 0.9712015626652069
+      }
+    },
+    {
+      "dataset": "cpu",
+      "series_length": 600,
+      "window_size": 100,
+      "n_subsequences": 501,
+      "c22_cpu": {
+        "time_s": 0.01830887980759144,
+        "throughput_mpairs_s": 13.709249426386375
+      },
+      "c22_gpu": {
+        "time_s": 0.02179243043065071,
+        "throughput_mpairs_s": 11.517806643859743
+      },
+      "c22_gpu_speedup": 0.8401485949837099,
+      "mp_cpu": {
+        "time_s": 0.00035662297159433365,
+        "throughput_mpairs_s": 703.8273470659066
+      },
+      "mp_gpu": {
+        "time_s": 0.0008644126355648041,
+        "throughput_mpairs_s": 290.3717387657075
+      },
+      "mp_gpu_speedup": 0.412561034998427,
+      "profile_correlation": -0.26460208869594354,
+      "anomaly_detection": {
+        "has_labels": true,
+        "n_anomaly_points": 10,
+        "top_k": 5,
+        "tolerance": 100,
+        "mp_discord_indices": [
+          499,
+          184,
+          251,
+          75,
+          216
+        ],
+        "c22_discord_indices": [
+          357,
+          48,
+          181,
+          123,
+          151
+        ],
+        "mp_hits": 1,
+        "c22_hits": 0,
+        "mp_precision_at_k": 0.2,
+        "c22_precision_at_k": 0.0
+      },
+      "motif_info": {
+        "c22_top_motif_idx": 454,
+        "c22_top_motif_match": 480,
+        "c22_top_motif_dot": 8199.037125917204,
+        "c22_motif_pair_pearson_r": 0.48156201056000447,
+        "mp_top_motif_idx": 55,
+        "mp_top_motif_match": 181,
+        "mp_top_motif_distance": 3.702981100013216,
+        "mp_motif_pair_pearson_r": 0.9314396548647244
+      }
+    },
+    {
+      "dataset": "ecg",
+      "series_length": 45000,
+      "window_size": 100,
+      "n_subsequences": 44901,
+      "c22_cpu": {
+        "time_s": 3.8476791018620133,
+        "throughput_mpairs_s": 523.978156084884
+      },
+      "c22_gpu": {
+        "time_s": 1.5633027646690607,
+        "throughput_mpairs_s": 1289.6412944211693
+      },
+      "c22_gpu_speedup": 2.461250110228352,
+      "mp_cpu": {
+        "time_s": 0.12146222312003374,
+        "throughput_mpairs_s": 16598.574842546815
+      },
+      "mp_gpu": {
+        "time_s": 0.12398403976112604,
+        "throughput_mpairs_s": 16260.962337445371
+      },
+      "mp_gpu_speedup": 0.9796601510488692,
+      "profile_correlation": 0.39858846833835854,
+      "anomaly_detection": {
+        "has_labels": true,
+        "n_anomaly_points": 238,
+        "top_k": 5,
+        "tolerance": 100,
+        "mp_discord_indices": [
+          4335,
+          4370,
+          4181,
+          4264,
+          4213
+        ],
+        "c22_discord_indices": [
+          4372,
+          26519,
+          6879,
+          14321,
+          18662
+        ],
+        "mp_hits": 5,
+        "c22_hits": 1,
+        "mp_precision_at_k": 1.0,
+        "c22_precision_at_k": 0.2
+      },
+      "motif_info": {
+        "c22_top_motif_idx": 20072,
+        "c22_top_motif_match": 38272,
+        "c22_top_motif_dot": 10615.88467361222,
+        "c22_motif_pair_pearson_r": 0.9993547142617996,
+        "mp_top_motif_idx": 5934,
+        "mp_top_motif_match": 9884,
+        "mp_top_motif_distance": 0.11053014286333242,
+        "mp_motif_pair_pearson_r": 0.9999389154375927
+      }
+    },
+    {
+      "dataset": "seismic",
+      "series_length": 1000,
+      "window_size": 100,
+      "n_subsequences": 901,
+      "c22_cpu": {
+        "time_s": 0.033552682027220726,
+        "throughput_mpairs_s": 24.194816955061878
+      },
+      "c22_gpu": {
+        "time_s": 0.032269882038235664,
+        "throughput_mpairs_s": 25.15661504551272
+      },
+      "c22_gpu_speedup": 1.039752236697522,
+      "mp_cpu": {
+        "time_s": 0.0004569757729768753,
+        "throughput_mpairs_s": 1776.4639790676172
+      },
+      "mp_gpu": {
+        "time_s": 0.0009329896420240402,
+        "throughput_mpairs_s": 870.1071945867138
+      },
+      "mp_gpu_speedup": 0.48979726289941006,
+      "profile_correlation": -0.030292830701608018,
+      "anomaly_detection": {
+        "has_labels": true,
+        "n_anomaly_points": 28,
+        "top_k": 5,
+        "tolerance": 100,
+        "mp_discord_indices": [
+          83,
+          308,
+          141,
+          639,
+          518
+        ],
+        "c22_discord_indices": [
+          683,
+          491,
+          709,
+          789,
+          751
+        ],
+        "mp_hits": 0,
+        "c22_hits": 4,
+        "mp_precision_at_k": 0.0,
+        "c22_precision_at_k": 0.8
+      },
+      "motif_info": {
+        "c22_top_motif_idx": 621,
+        "c22_top_motif_match": 727,
+        "c22_top_motif_dot": 268.9343126267394,
+        "c22_motif_pair_pearson_r": -0.1229346506496188,
+        "mp_top_motif_idx": 686,
+        "mp_top_motif_match": 734,
+        "mp_top_motif_distance": 10.550773832171794,
+        "mp_motif_pair_pearson_r": 0.44340585771179464
+      }
+    },
+    {
+      "dataset": "telemanom",
+      "series_length": 7914,
+      "window_size": 100,
+      "n_subsequences": 7815,
+      "c22_cpu": {
+        "time_s": 0.3878904189914465,
+        "throughput_mpairs_s": 157.45226489171614
+      },
+      "c22_gpu": {
+        "time_s": 0.46514756977558136,
+        "throughput_mpairs_s": 131.30075048971307
+      },
+      "c22_gpu_speedup": 0.8339082996361586,
+      "mp_cpu": {
+        "time_s": 0.006192171946167946,
+        "throughput_mpairs_s": 9863.134540021303
+      },
+      "mp_gpu": {
+        "time_s": 0.006708262488245964,
+        "throughput_mpairs_s": 9104.328446749452
+      },
+      "mp_gpu_speedup": 0.9230664359091049,
+      "profile_correlation": 0.18041766002255655,
+      "anomaly_detection": {
+        "has_labels": true,
+        "n_anomaly_points": 118,
+        "top_k": 5,
+        "tolerance": 100,
+        "mp_discord_indices": [
+          4463,
+          4523,
+          4497,
+          4437,
+          4410
+        ],
+        "c22_discord_indices": [
+          2387,
+          301,
+          3130,
+          5621,
+          5655
+        ],
+        "mp_hits": 5,
+        "c22_hits": 0,
+        "mp_precision_at_k": 1.0,
+        "c22_precision_at_k": 0.0
+      },
+      "motif_info": {
+        "c22_top_motif_idx": 4441,
+        "c22_top_motif_match": 4467,
+        "c22_top_motif_dot": 7570.550149206344,
+        "c22_motif_pair_pearson_r": -0.2247439020072715,
+        "mp_top_motif_idx": 6894,
+        "mp_top_motif_match": 6983,
+        "mp_top_motif_distance": 2.0839033219533833,
+        "mp_motif_pair_pearson_r": 0.9782867347237575
+      }
+    },
+    {
+      "dataset": "twitter_ieee",
+      "series_length": 12400,
+      "window_size": 100,
+      "n_subsequences": 12301,
+      "c22_cpu": {
+        "time_s": 0.6511562475934625,
+        "throughput_mpairs_s": 232.37832940899693
+      },
+      "c22_gpu": {
+        "time_s": 0.15260256174951792,
+        "throughput_mpairs_s": 991.5600319237631
+      },
+      "c22_gpu_speedup": 4.2670073171004255,
+      "mp_cpu": {
+        "time_s": 0.01205973606556654,
+        "throughput_mpairs_s": 12547.0905977818
+      },
+      "mp_gpu": {
+        "time_s": 0.012748057954013348,
+        "throughput_mpairs_s": 11869.619791959221
+      },
+      "mp_gpu_speedup": 0.9460057452727448,
+      "profile_correlation": 0.5557690890714808,
+      "anomaly_detection": {
+        "has_labels": true,
+        "n_anomaly_points": 218,
+        "top_k": 5,
+        "tolerance": 100,
+        "mp_discord_indices": [
+          8680,
+          8650,
+          10727,
+          4715,
+          11334
+        ],
+        "c22_discord_indices": [
+          1050,
+          10820,
+          2321,
+          868,
+          2460
+        ],
+        "mp_hits": 0,
+        "c22_hits": 0,
+        "mp_precision_at_k": 0.0,
+        "c22_precision_at_k": 0.0
+      },
+      "motif_info": {
+        "c22_top_motif_idx": 6356,
+        "c22_top_motif_match": 6453,
+        "c22_top_motif_dot": 9207.894543516266,
+        "c22_motif_pair_pearson_r": -0.6179198094673319,
+        "mp_top_motif_idx": 6384,
+        "mp_top_motif_match": 6584,
+        "mp_top_motif_distance": 2.578186888949954,
+        "mp_motif_pair_pearson_r": 0.9667647618282329
+      }
+    },
+    {
+      "dataset": "water_quality ts7",
+      "series_length": 11000,
+      "window_size": 100,
+      "n_subsequences": 10901,
+      "c22_cpu": {
+        "time_s": 0.5688678361475468,
+        "throughput_mpairs_s": 208.89175560486197
+      },
+      "c22_gpu": {
+        "time_s": 0.5785025153309107,
+        "throughput_mpairs_s": 205.41276459623813
+      },
+      "c22_gpu_speedup": 0.9833454843703614,
+      "mp_cpu": {
+        "time_s": 0.010376724414527416,
+        "throughput_mpairs_s": 11451.764184238664
+      },
+      "mp_gpu": {
+        "time_s": 0.011371664702892303,
+        "throughput_mpairs_s": 10449.815757386512
+      },
+      "mp_gpu_speedup": 0.9125070678427731,
+      "profile_correlation": 0.5880386725035678,
+      "anomaly_detection": {
+        "has_labels": true,
+        "n_anomaly_points": 291,
+        "top_k": 5,
+        "tolerance": 100,
+        "mp_discord_indices": [
+          4865,
+          4836,
+          5727,
+          1108,
+          1138
+        ],
+        "c22_discord_indices": [
+          1883,
+          7241,
+          7276,
+          2121,
+          4893
+        ],
+        "mp_hits": 0,
+        "c22_hits": 0,
+        "mp_precision_at_k": 0.0,
+        "c22_precision_at_k": 0.0
+      },
+      "motif_info": {
+        "c22_top_motif_idx": 4797,
+        "c22_top_motif_match": 4823,
+        "c22_top_motif_dot": 15970.610215132594,
+        "c22_motif_pair_pearson_r": 0.22852480549215942,
+        "mp_top_motif_idx": 10054,
+        "mp_top_motif_match": 10086,
+        "mp_top_motif_distance": 2.1952687553354973,
+        "mp_motif_pair_pearson_r": 0.9759039754592377
+      }
+    },
+    {
+      "dataset": "yahoo_real_57",
+      "series_length": 1441,
+      "window_size": 100,
+      "n_subsequences": 1342,
+      "c22_cpu": {
+        "time_s": 0.049551487900316715,
+        "throughput_mpairs_s": 36.345306191875
+      },
+      "c22_gpu": {
+        "time_s": 0.022669311612844467,
+        "throughput_mpairs_s": 79.44502377300117
+      },
+      "c22_gpu_speedup": 2.1858399913758637,
+      "mp_cpu": {
+        "time_s": 0.000634695403277874,
+        "throughput_mpairs_s": 2837.5248831155086
+      },
+      "mp_gpu": {
+        "time_s": 0.0009707817807793617,
+        "throughput_mpairs_s": 1855.168726543418
+      },
+      "mp_gpu_speedup": 0.6537982230860665,
+      "profile_correlation": -0.30556857222820677,
+      "anomaly_detection": {
+        "has_labels": true,
+        "n_anomaly_points": 18,
+        "top_k": 5,
+        "tolerance": 100,
+        "mp_discord_indices": [
+          882,
+          909,
+          935,
+          961,
+          1031
+        ],
+        "c22_discord_indices": [
+          0,
+          67,
+          118,
+          165,
+          34
+        ],
+        "mp_hits": 5,
+        "c22_hits": 0,
+        "mp_precision_at_k": 1.0,
+        "c22_precision_at_k": 0.0
+      },
+      "motif_info": {
+        "c22_top_motif_idx": 877,
+        "c22_top_motif_match": 920,
+        "c22_top_motif_dot": 1251.5977291322201,
+        "c22_motif_pair_pearson_r": 0.516579649941467,
+        "mp_top_motif_idx": 1204,
+        "mp_top_motif_match": 1324,
+        "mp_top_motif_distance": 1.9113847013849163,
+        "mp_motif_pair_pearson_r": 0.981733042616558
+      }
+    },
+    {
+      "dataset": "yahoo_real_61",
+      "series_length": 1400,
+      "window_size": 100,
+      "n_subsequences": 1301,
+      "c22_cpu": {
+        "time_s": 0.05609067901968956,
+        "throughput_mpairs_s": 30.17615456938656
+      },
+      "c22_gpu": {
+        "time_s": 0.04198662657290697,
+        "throughput_mpairs_s": 40.31286002605881
+      },
+      "c22_gpu_speedup": 1.335917733764389,
+      "mp_cpu": {
+        "time_s": 0.0006334902718663216,
+        "throughput_mpairs_s": 2671.8658125774205
+      },
+      "mp_gpu": {
+        "time_s": 0.0009181089699268341,
+        "throughput_mpairs_s": 1843.5731001897157
+      },
+      "mp_gpu_speedup": 0.6899946440092025,
+      "profile_correlation": 0.7036831821809543,
+      "anomaly_detection": {
+        "has_labels": true,
+        "n_anomaly_points": 31,
+        "top_k": 5,
+        "tolerance": 100,
+        "mp_discord_indices": [
+          124,
+          842,
+          277,
+          410,
+          210
+        ],
+        "c22_discord_indices": [
+          102,
+          130,
+          278,
+          466,
+          169
+        ],
+        "mp_hits": 0,
+        "c22_hits": 0,
+        "mp_precision_at_k": 0.0,
+        "c22_precision_at_k": 0.0
+      },
+      "motif_info": {
+        "c22_top_motif_idx": 1044,
+        "c22_top_motif_match": 1074,
+        "c22_top_motif_dot": 1326.9247276580147,
+        "c22_motif_pair_pearson_r": -0.1875039433023352,
+        "mp_top_motif_idx": 519,
+        "mp_top_motif_match": 678,
+        "mp_top_motif_distance": 7.747098973676085,
+        "mp_motif_pair_pearson_r": 0.6999122874603348
+      }
+    },
+    {
+      "dataset": "yahoo_real_7",
+      "series_length": 1423,
+      "window_size": 100,
+      "n_subsequences": 1324,
+      "c22_cpu": {
+        "time_s": 0.05656141694635153,
+        "throughput_mpairs_s": 30.99243432431505
+      },
+      "c22_gpu": {
+        "time_s": 0.04032363649457693,
+        "throughput_mpairs_s": 43.472666465380804
+      },
+      "c22_gpu_speedup": 1.4026864108339632,
+      "mp_cpu": {
+        "time_s": 0.0006211372092366219,
+        "throughput_mpairs_s": 2822.204134500989
+      },
+      "mp_gpu": {
+        "time_s": 0.0009406637400388718,
+        "throughput_mpairs_s": 1863.5522189125313
+      },
+      "mp_gpu_speedup": 0.660318010356128,
+      "profile_correlation": 0.23155393704237592,
+      "anomaly_detection": {
+        "has_labels": true,
+        "n_anomaly_points": 37,
+        "top_k": 5,
+        "tolerance": 100,
+        "mp_discord_indices": [
+          238,
+          709,
+          458,
+          1223,
+          156
+        ],
+        "c22_discord_indices": [
+          237,
+          483,
+          821,
+          328,
+          558
+        ],
+        "mp_hits": 3,
+        "c22_hits": 2,
+        "mp_precision_at_k": 0.6,
+        "c22_precision_at_k": 0.4
+      },
+      "motif_info": {
+        "c22_top_motif_idx": 222,
+        "c22_top_motif_match": 1249,
+        "c22_top_motif_dot": 7225.433824336199,
+        "c22_motif_pair_pearson_r": -0.23736867157734384,
+        "mp_top_motif_idx": 66,
+        "mp_top_motif_match": 114,
+        "mp_top_motif_distance": 4.0837230150415325,
+        "mp_motif_pair_pearson_r": 0.9166160316821004
+      }
+    }
+  ],
+  "thread_scaling": {
+    "dataset": "MGAB",
+    "series_length": 6100,
+    "window_size": 100,
+    "n_subsequences": 6001,
+    "thread_counts": [
+      1,
+      2,
+      4,
+      8,
+      16
+    ],
+    "c22_times": [
+      1.9480601930990815,
+      0.9942899700254202,
+      0.5153906932100654,
+      0.3271961472928524,
+      0.29179874062538147
+    ],
+    "c22_throughputs": [
+      18.48608227177525,
+      36.218811499304685,
+      69.87320779058395,
+      110.06242371114459,
+      123.41383284526614
+    ],
+    "c22_speedups": [
+      1.0,
+      1.959247555367854,
+      3.7797737110186467,
+      5.953799301174219,
+      6.676040441175344
+    ],
+    "gpu_time": 0.07282496523112059,
+    "gpu_throughput": 494.50076475437635,
+    "gpu_speedup_vs_1thread": 26.74989527171939,
+    "gpu_speedup_vs_all_cpu": 4.006850393945481
+  },
+  "scaling_by_size": {
+    "window_size": 100,
+    "threads": 16,
+    "sizes": [
+      600,
+      1000,
+      1400,
+      1423,
+      1441,
+      1510,
+      3000,
+      3301,
+      3984,
+      5000,
+      5000,
+      6100,
+      6321,
+      7888,
+      7914,
+      11000,
+      12400,
+      15000,
+      17000,
+      20000,
+      27000,
+      45000
+    ],
+    "dataset_names": [
+      "cpu",
+      "seismic",
+      "yahoo_real_61",
+      "yahoo_real_7",
+      "yahoo_real_57",
+      "PV_System",
+      "AIOps_2",
+      "144_UCR_Anomaly_InternalBleeding9_4200_6599_6681",
+      "162_UCR_Anomaly_WalkingAceleration5_2700_5920_5979",
+      "MSCRED",
+      "NewyorkTaxi",
+      "MGAB",
+      "140_UCR_Anomaly_InternalBleeding4_1000_4675_5033",
+      "051_UCR_Anomaly_DISTORTEDTkeepSecondMARS_3500_9330_9340",
+      "telemanom",
+      "water_quality ts7",
+      "twitter_ieee",
+      "Damp ECG 60 Seconds",
+      "HAI_test2_57",
+      "HAI_test1_36",
+      "AIOps",
+      "ecg"
+    ],
+    "c22_cpu_times": [
+      0.018374941311776638,
+      0.033547429367899895,
+      0.04916721489280462,
+      0.04900309070944786,
+      0.04851008113473654,
+      0.053114631213247776,
+      0.10880869626998901,
+      0.12742109410464764,
+      0.17063688021153212,
+      0.22536794561892748,
+      0.21457196306437254,
+      0.27713749650865793,
+      0.2749538766220212,
+      0.3609250085428357,
+      0.36420727986842394,
+      0.44269817788153887,
+      0.6653721900656819,
+      0.7807359844446182,
+      0.865519218146801,
+      1.0044826613739133,
+      1.7585757207125425,
+      3.7269809739664197
+    ],
+    "c22_cpu_throughputs": [
+      13.659961996130653,
+      24.198605237299578,
+      34.425399195180034,
+      35.77276401592408,
+      37.12556148891671,
+      37.48347591846646,
+      77.34493003314478,
+      80.46394572298712,
+      88.45230281571895,
+      106.58037874035047,
+      111.94286828980519,
+      129.94272321022777,
+      140.7991932160284,
+      168.0917630089899,
+      167.69084083674576,
+      268.42622567061494,
+      227.4134736305451,
+      284.3980621156453,
+      330.0259485995051,
+      394.2823666645378,
+      411.50562496494877,
+      540.9471674480743
+    ],
+    "mp_cpu_times": [
+      0.0003727078437805176,
+      0.0004459274932742119,
+      0.0006848303601145744,
+      0.0006852820515632629,
+      0.0007056025788187981,
+      0.0007387707009911537,
+      0.001839587464928627,
+      0.002581587992608547,
+      0.0030412552878260612,
+      0.00421540904790163,
+      0.004124135710299015,
+      0.005421238951385021,
+      0.005768267437815666,
+      0.007444583810865879,
+      0.00770662073045969,
+      0.012703441083431244,
+      0.015186211094260216,
+      0.02141364198178053,
+      0.027553360909223557,
+      0.034721809439361095,
+      0.06281823199242353,
+      0.1583804078400135
+    ],
+    "mp_cpu_throughputs": [
+      673.452421752119,
+      1820.477571453087,
+      2471.5624460878485,
+      2558.035769361123,
+      2552.377292915897,
+      2694.9106093797836,
+      4574.83058590341,
+      3971.5105699884075,
+      4962.827376056577,
+      5698.09494809447,
+      5824.202375304104,
+      6642.76216616492,
+      6711.423216302881,
+      8149.35025802922,
+      7924.903422145831,
+      9354.300163204529,
+      9963.946902936896,
+      10369.081597092132,
+      10366.931349720753,
+      11406.369869394905,
+      11519.964476034293,
+      12729.47726613095
+    ],
+    "c22_gpu_times": [
+      0.021664859727025032,
+      0.022778180427849293,
+      0.03369380813091993,
+      0.040311469696462154,
+      0.02236466109752655,
+      0.28307869378477335,
+      0.036165233701467514,
+      0.030750290490686893,
+      0.03371167276054621,
+      0.04745027422904968,
+      0.04307874012738466,
+      0.058815911412239075,
+      0.06994208693504333,
+      0.06841327250003815,
+      0.4660366829484701,
+      0.5801493488252163,
+      0.15336091816425323,
+      0.2716565700247884,
+      0.8722749091684818,
+      0.5637298785150051,
+      0.5972869442775846,
+      1.5758471442386508
+    ],
+    "c22_gpu_throughputs": [
+      11.585627747540782,
+      35.63941389310744,
+      50.23477884788998,
+      43.48578737514614,
+      80.52722069636818,
+      7.033100843377887,
+      232.7041785342729,
+      333.4213705429934,
+      447.7151017455313,
+      506.20995115966605,
+      557.5790036796107,
+      612.2833113575831,
+      553.5048451721756,
+      886.7946055345645,
+      131.05025255437457,
+      204.8296722915066,
+      986.6568537229181,
+      817.3547983019115,
+      327.46992719565577,
+      702.5524388440911,
+      1211.5848302615548,
+      1279.3752289813942
+    ],
+    "mp_gpu_times": [
+      0.0008634664118289948,
+      0.0008859280496835709,
+      0.0009689182043075562,
+      0.0009803511202335358,
+      0.0009696651250123978,
+      0.0009713098406791687,
+      0.002064952626824379,
+      0.0024417974054813385,
+      0.0029756641015410423,
+      0.0039437636733055115,
+      0.00393461249768734,
+      0.00543462298810482,
+      0.005411721765995026,
+      0.006615809164941311,
+      0.006726022809743881,
+      0.011352542787790298,
+      0.012624832801520824,
+      0.01750252116471529,
+      0.02214891742914915,
+      0.02794295083731413,
+      0.04820646718144417,
+      0.1220347722992301
+    ],
+    "mp_gpu_throughputs": [
+      290.6899406409215,
+      916.3283635617508,
+      1746.8977179653969,
+      1788.110365582499,
+      1857.3051185861445,
+      2049.7280235603184,
+      4075.541923178343,
+      4198.875785920871,
+      5072.22068249689,
+      6090.5781861587875,
+      6104.743736293776,
+      6626.4028027008035,
+      7153.598369239515,
+      9170.234432017234,
+      9080.288117893795,
+      10467.417143567522,
+      11985.473659641037,
+      12686.160977061267,
+      12896.51297467377,
+      14173.51386064523,
+      15011.75761908053,
+      16520.69949421063
+    ]
+  },
+  "summary": {
+    "c22_gpu_speedup_mean": 2.621198690528498,
+    "c22_gpu_speedup_median": 2.3331601492847223,
+    "c22_gpu_speedup_min": 0.21434570573353615,
+    "c22_gpu_speedup_max": 5.392108546054245,
+    "mp_gpu_speedup_mean": 0.7998017865005246,
+    "mp_gpu_speedup_median": 0.8761809793770855,
+    "mp_gpu_speedup_min": 0.20129811389439273,
+    "mp_gpu_speedup_max": 1.0067753269581388,
+    "profile_correlation_mean": 0.24015402735328156,
+    "profile_correlation_median": 0.20598579853246624,
+    "profile_correlation_min": -0.35249825080812913,
+    "profile_correlation_max": 0.836731511918132,
+    "mp_anomaly_precision_mean": 0.4454545454545454,
+    "c22_anomaly_precision_mean": 0.1272727272727273,
+    "n_datasets_with_labels": 22
+  }
+}
