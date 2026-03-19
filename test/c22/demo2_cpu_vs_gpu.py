@@ -13,7 +13,10 @@ import pyscamp
 
 # ── Load ECG dataset (~45K points) ──
 ts = []
-with open('20Papers /ecg.csv') as f:
+import os
+SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
+DATA_PATH = os.path.join(SCRIPT_DIR, '..', '..', '20Papers ', 'ecg.csv')
+with open(DATA_PATH) as f:
     for row in csv.DictReader(f):
         ts.append(float(row['ts']))
 
